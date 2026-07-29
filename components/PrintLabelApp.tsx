@@ -138,8 +138,9 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
 
       <div className="flex flex-col items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3">
         <p className="text-sm text-amber-800">
-          Debug: cetak kotak ukuran 50mm x 20mm + teks 3 ukuran, lalu ukur hasilnya pakai
-          penggaris untuk kalibrasi posisi/ukuran teks.
+          Debug: cetak angka &quot;0123456789&quot; di dua ukuran (lebih besar dari sebelumnya).
+          Ukur tinggi huruf tiap baris pakai penggaris (mm), dan cek apakah ada yang kepotong
+          di tepi label.
         </p>
         <button
           type="button"
