@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { LabelPreview } from "@/components/LabelPreview";
 import { PrinterConnect } from "@/components/PrinterConnect";
 import { addHours, startOfToday } from "@/lib/format";
-import { generateLabelTspl, LABEL_WIDTH_MM, LABEL_HEIGHT_MM } from "@/lib/tspl";
+import { generateLabelTspl, generateCalibrationTspl, LABEL_WIDTH_MM, LABEL_HEIGHT_MM } from "@/lib/tspl";
 import { LabelData } from "@/lib/types";
 import { PrinterConnection, sendToPrinter } from "@/lib/webusb";
 
@@ -58,6 +58,7 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
   const [itemId, setItemId] = useState<string | null>(null);
   const [connection, setConnection] = useState<PrinterConnection | null>(null);
   const [printStatus, setPrintStatus] = useState<PrintStatus>({ state: "idle" });
+  const [calibrationStatus, setCalibrationStatus] = useState<PrintStatus>({ state: "idle" });
 
   const storeClerks = useMemo(
     () => data.clerks.filter((c) => c.storeId === storeId),
@@ -99,6 +100,20 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
     }
   }
 
+  async function handleCalibrationPrint() {
+    if (!connection) return;
+    setCalibrationStatus({ state: "printing" });
+    try {
+      await sendToPrinter(connection, generateCalibrationTspl());
+      setCalibrationStatus({ state: "success" });
+    } catch (err) {
+      setCalibrationStatus({
+        state: "error",
+        message: err instanceof Error ? err.message : "Gagal mencetak kalibrasi.",
+      });
+    }
+  }
+
   if (data.stores.length === 0) {
     return (
       <EmptyState message="Belum ada Store. Tambahkan Store dulu di Data Master." />
@@ -120,6 +135,24 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
       </div>
 
       <PrinterConnect connection={connection} onConnectionChange={setConnection} />
+
+      <div className="flex flex-col items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3">
+        <p className="text-sm text-amber-800">
+          Debug: cetak kotak ukuran 50mm x 20mm + teks 3 ukuran, lalu ukur hasilnya pakai
+          penggaris untuk kalibrasi posisi/ukuran teks.
+        </p>
+        <button
+          type="button"
+          onClick={handleCalibrationPrint}
+          disabled={!connection || calibrationStatus.state === "printing"}
+          className="rounded-md border border-amber-400 bg-white px-3 py-1.5 text-sm font-medium text-amber-800 disabled:opacity-50"
+        >
+          {calibrationStatus.state === "printing" ? "Mencetak..." : "Cetak Kalibrasi"}
+        </button>
+        {calibrationStatus.state === "error" && (
+          <p className="text-sm text-red-600">{calibrationStatus.message}</p>
+        )}
+      </div>
 
       {data.stores.length > 1 && (
         <label className="flex flex-col gap-1">

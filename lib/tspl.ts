@@ -40,3 +40,25 @@ export function generateLabelTspl(data: LabelData, copies: number): string {
 
   return lines.join("\r\n") + "\r\n";
 }
+
+/**
+ * Prints a box of a known dot size (400 x 160 dots) plus text at increasing
+ * multipliers, so the actual printed mm size can be measured with a ruler
+ * to work out the printer's real dots-per-mm — the print above assumes 8
+ * dots/mm (203dpi), which may not match this specific printer/firmware.
+ */
+export function generateCalibrationTspl(): string {
+  const lines = [
+    `SIZE ${LABEL_WIDTH_MM} mm,${LABEL_HEIGHT_MM} mm`,
+    `GAP ${GAP_MM} mm,0 mm`,
+    "DIRECTION 1",
+    "CLS",
+    "BOX 16,16,416,176,2",
+    `TEXT 30,30,"0",0,1,1,"M1 0123456789"`,
+    `TEXT 30,55,"0",0,2,2,"M2 0123456789"`,
+    `TEXT 30,90,"0",0,3,3,"M3 0123456789"`,
+    "PRINT 1,1",
+  ];
+
+  return lines.join("\r\n") + "\r\n";
+}
