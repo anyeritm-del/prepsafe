@@ -60,7 +60,11 @@ class WebUsbDriverError extends Error {
 
 async function openAndClaim(device: USBDevice): Promise<PrinterConnection> {
   if (!device.opened) {
-    await device.open();
+    try {
+      await device.open();
+    } catch (cause) {
+      throw new WebUsbDriverError(cause);
+    }
   }
   if (!device.configuration) {
     await device.selectConfiguration(1);
