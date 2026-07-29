@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Print Label — GS 2208D
 
-## Getting Started
+Aplikasi web untuk mencetak label food-safety (mirip PrepSafe) ke printer
+thermal **GS 2208D**, ukuran kertas **55mm x 30mm**. Aplikasi mengirim
+perintah **TSPL** langsung ke printer dari browser lewat **WebUSB** — tidak
+ada server backend, tidak ada database, tidak ada login (v1).
 
-First, run the development server:
+## Menjalankan secara lokal
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Syarat browser
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Chrome atau Edge terbaru.** WebUSB tidak didukung Safari maupun Firefox.
+- **HTTPS**, kecuali di `localhost` saat development. Deploy ke Vercel sudah
+  otomatis HTTPS jadi tidak perlu setup tambahan.
+- Tombol "Hubungkan Printer" harus diklik langsung oleh user (syarat browser
+  untuk WebUSB) — tidak bisa dipicu otomatis dari kode.
 
-## Learn More
+## Menghubungkan printer
 
-To learn more about Next.js, take a look at the following resources:
+1. Colokkan GS 2208D via USB ke komputer yang menjalankan browser.
+2. Buka aplikasi, klik **Hubungkan Printer**, pilih printer dari dialog yang
+   muncul.
+3. Kunjungan berikutnya, aplikasi otomatis mencoba menyambung ulang ke
+   printer yang sama tanpa perlu klik ulang (selama browser & origin sama).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Windows: printer tidak muncul / gagal terhubung
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Windows biasanya memasang driver bawaan **"USB Printing Support"**
+(`usbprint.sys`) untuk printer USB, dan driver ini menguasai perangkat secara
+eksklusif — WebUSB tidak bisa mengambil alih koneksi selama driver itu masih
+terpasang untuk device tersebut. Kalau muncul error terkait koneksi/driver
+saat menghubungkan:
 
-## Deploy on Vercel
+1. Download [Zadig](https://zadig.akeo.ie/).
+2. Jalankan Zadig, aktifkan **Options → List All Devices**.
+3. Pilih GS 2208D dari daftar device.
+4. Ganti driver-nya ke **WinUSB**, lalu klik **Replace Driver**.
+5. Cabut-colok ulang printer, lalu coba **Hubungkan Printer** lagi di
+   aplikasi.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Ini hanya mengganti driver untuk keperluan raw-printing dari browser pada
+device tersebut — tidak memengaruhi printer/device USB lain di komputer yang
+sama. Kalau nanti printer perlu dipakai lagi lewat aplikasi Windows biasa
+(bukan browser ini), driver bisa dikembalikan lewat Device Manager.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+macOS dan Linux umumnya tidak mengalami masalah ini karena tidak ada driver
+printer class bawaan yang mengklaim device secara eksklusif.
+
+## Kustomisasi isi & posisi label
+
+Generator perintah TSPL ada di [`lib/tspl.ts`](lib/tspl.ts). Ukuran kertas,
+posisi teks (`x,y` dalam dot, 8 dot = 1mm pada resolusi 203dpi), dan ukuran
+font (`multiplier`) semuanya konstanta di file itu. Kalau posisi teks meleset
+di label fisik (tergantung kalibrasi gap sensor tiap unit printer), sesuaikan
+angka `x,y` di sana lalu tes ulang cetak — biasanya cukup satu-dua kali
+iterasi sambil melihat hasil cetak fisiknya.
+
+## Deploy ke Vercel
+
+```bash
+npx vercel --prod
+```
+
+Atau hubungkan repo ini ke [Vercel](https://vercel.com/new) lewat dashboard
+untuk deploy otomatis tiap push. Tidak ada environment variable yang perlu
+diset untuk v1 (tanpa database/auth).
+
+Setelah deploy, ulangi tes hubungkan printer & cetak dari domain Vercel
+(HTTPS) untuk memastikan WebUSB tetap berfungsi di production, bukan cuma di
+`localhost`.
+
+## Batasan versi ini (v1)
+
+- Tanpa login/akun user.
+- Tanpa riwayat label yang tersimpan — setiap cetak bersifat sekali pakai,
+  tidak ada log ke database.
+- Satu printer aktif per browser/perangkat pada satu waktu.
