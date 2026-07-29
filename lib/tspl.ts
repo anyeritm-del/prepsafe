@@ -1,13 +1,15 @@
 import { LabelData } from "./types";
 import { formatDateTime } from "./format";
 
-const LABEL_WIDTH_MM = 55;
-const LABEL_HEIGHT_MM = 30;
+// Measured from the physical label stock with a ruler — not the 55x30mm
+// originally assumed. Update these if you switch to a different label size.
+export const LABEL_WIDTH_MM = 56;
+export const LABEL_HEIGHT_MM = 26;
 const GAP_MM = 2;
 
 // Font "0" is the built-in font confirmed working on the GS 2208D. At x/y
 // multiplier 2 a product name longer than this many characters starts
-// running past the 55mm label width, so we drop to multiplier 1 instead.
+// running past the label width, so we drop to multiplier 1 instead.
 const PRODUCT_NAME_LARGE_FONT_LIMIT = 18;
 
 /** Strips characters that would break out of a TSPL quoted string literal. */

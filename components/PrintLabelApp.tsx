@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { LabelPreview } from "@/components/LabelPreview";
 import { PrinterConnect } from "@/components/PrinterConnect";
 import { addHours, startOfToday } from "@/lib/format";
-import { generateLabelTspl } from "@/lib/tspl";
+import { generateLabelTspl, LABEL_WIDTH_MM, LABEL_HEIGHT_MM } from "@/lib/tspl";
 import { LabelData } from "@/lib/types";
 import { PrinterConnection, sendToPrinter } from "@/lib/webusb";
 
@@ -114,7 +114,9 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
       <div>
         <h1 className="text-xl font-semibold text-neutral-900">Print Label</h1>
-        <p className="text-sm text-neutral-500">Cetak label ke printer GS 2208D (55mm x 30mm)</p>
+        <p className="text-sm text-neutral-500">
+          Cetak label ke printer GS 2208D ({LABEL_WIDTH_MM}mm x {LABEL_HEIGHT_MM}mm)
+        </p>
       </div>
 
       <PrinterConnect connection={connection} onConnectionChange={setConnection} />

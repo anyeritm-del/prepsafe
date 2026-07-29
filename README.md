@@ -1,8 +1,10 @@
 # Print Label — GS 2208D
 
 Aplikasi web untuk mencetak label food-safety (mirip PrepSafe) ke printer
-thermal **GS 2208D**, ukuran kertas **55mm x 30mm**. Halaman cetak mengirim
-perintah **TSPL** langsung ke printer dari browser lewat **WebUSB**.
+thermal **GS 2208D**, ukuran kertas **56mm x 26mm** (diukur langsung dari
+label fisik — lihat `LABEL_WIDTH_MM`/`LABEL_HEIGHT_MM` di
+[`lib/tspl.ts`](lib/tspl.ts) kalau ganti ukuran label). Halaman cetak
+mengirim perintah **TSPL** langsung ke printer dari browser lewat **WebUSB**.
 
 Di balik login ada **Data Master**: Company, Region, Store, Category, Item,
 dan Clerk. Halaman cetak (`/`) mengambil daftar Clerk/Category/Item dari data
