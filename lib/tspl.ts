@@ -42,11 +42,10 @@ export function generateLabelTspl(data: LabelData, copies: number): string {
 }
 
 /**
- * Round 2: multiplier 1-3 (previous test) were all judged "still too small"
- * even at mult 3, despite the calibration box confirming our mm/dot
- * assumptions were roughly correct. So this tests much bigger sizes (4 and
- * 6) with the same 10-digit string, to find where it stops fitting the
- * label width and to measure real character height with a ruler.
+ * Round 3: mult 6 from round 2 was legible and fit the width fine, but
+ * still judged too small, and the mult 4 line got clipped at the very top
+ * edge (y=10 sits too close to the physical edge under DIRECTION 1). This
+ * tests bigger sizes still (7 and 10) with more top margin.
  */
 export function generateCalibrationTspl(): string {
   const lines = [
@@ -54,8 +53,8 @@ export function generateCalibrationTspl(): string {
     `GAP ${GAP_MM} mm,0 mm`,
     "DIRECTION 1",
     "CLS",
-    `TEXT 10,10,"0",0,4,4,"0123456789"`,
-    `TEXT 10,100,"0",0,6,6,"0123456789"`,
+    `TEXT 10,25,"0",0,7,7,"0123456789"`,
+    `TEXT 10,110,"0",0,10,10,"12345"`,
     "PRINT 1,1",
   ];
 
