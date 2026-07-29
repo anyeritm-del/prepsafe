@@ -1,18 +1,44 @@
-"use client";
+import { PrintPageClient } from "@/components/PrintPageClient";
+import type { PrintPageData } from "@/components/PrintLabelApp";
+import { prisma } from "@/lib/prisma";
+import { requireCompanySession } from "@/lib/session";
 
-import dynamic from "next/dynamic";
+export default async function Home() {
+  const { companyId } = await requireCompanySession();
 
-// WebUSB and the printer's clock are browser-only, so this is never
-// rendered on the server.
-const PrintLabelApp = dynamic(() => import("@/components/PrintLabelApp"), {
-  ssr: false,
-  loading: () => (
-    <main className="flex flex-1 items-center justify-center">
-      <p className="text-sm text-neutral-400">Memuat...</p>
-    </main>
-  ),
-});
+  const [stores, clerks, categories, items] = await Promise.all([
+    prisma.store.findMany({ where: { companyId }, orderBy: { name: "asc" } }),
+    prisma.clerk.findMany({
+      where: { store: { companyId } },
+      orderBy: [{ order: "asc" }, { screenName: "asc" }],
+    }),
+    prisma.category.findMany({ where: { companyId }, orderBy: [{ order: "asc" }, { name: "asc" }] }),
+    prisma.item.findMany({
+      where: { active: true, category: { companyId } },
+      orderBy: { buttonText: "asc" },
+    }),
+  ]);
 
-export default function Home() {
-  return <PrintLabelApp />;
+  const data: PrintPageData = {
+    stores: stores.map((s) => ({ id: s.id, name: s.name })),
+    clerks: clerks.map((c) => ({
+      id: c.id,
+      storeId: c.storeId,
+      screenName: c.screenName,
+      printName: c.printName,
+      imageUrl: c.imageUrl,
+      order: c.order,
+    })),
+    categories: categories.map((c) => ({ id: c.id, name: c.name, order: c.order })),
+    items: items.map((i) => ({
+      id: i.id,
+      categoryId: i.categoryId,
+      buttonText: i.buttonText,
+      labelText: i.labelText,
+      shelfLifeHours: i.shelfLifeHours,
+      todayPlusShelfLife: i.todayPlusShelfLife,
+    })),
+  };
+
+  return <PrintPageClient data={data} />;
 }

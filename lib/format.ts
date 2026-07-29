@@ -12,21 +12,13 @@ export function formatDateTime(date: Date): string {
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
-/** Converts a Date to the value expected by <input type="datetime-local">. */
-export function toDatetimeLocalValue(date: Date): string {
-  const year = date.getFullYear();
-  const month = pad(date.getMonth() + 1);
-  const day = pad(date.getDate());
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-/** Parses the value of an <input type="datetime-local"> back into a Date. */
-export function fromDatetimeLocalValue(value: string): Date {
-  return new Date(value);
-}
-
 export function addHours(date: Date, hours: number): Date {
   return new Date(date.getTime() + hours * 60 * 60 * 1000);
+}
+
+/** Midnight (00:00) of the given date's day, in local time. */
+export function startOfToday(date: Date): Date {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  return start;
 }

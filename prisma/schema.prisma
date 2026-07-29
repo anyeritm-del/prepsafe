@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+}
+
+model Company {
+  id         String     @id @default(cuid())
+  name       String
+  regions    Region[]
+  stores     Store[]
+  categories Category[]
+  users      User[]
+  createdAt  DateTime   @default(now())
+}
+
+model Region {
+  id         String     @id @default(cuid())
+  companyId  String
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String
+  stores     Store[]
+  categories Category[]
+  createdAt  DateTime   @default(now())
+
+  @@index([companyId])
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  regionId  String?
+  region    Region?  @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  name      String
+  clerks    Clerk[]
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([regionId])
+}
+
+model Clerk {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  screenName String
+  printName  String
+  imageUrl   String?
+  order      Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  @@index([storeId])
+}
+
+// Shared across all Stores of a Company (optionally scoped to one Region).
+model Category {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  regionId  String?
+  region    Region?  @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  name      String
+  order     Int      @default(10)
+  items     Item[]
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([regionId])
+}
+
+model Item {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  buttonText String
+  labelText  String
+  batchRequired Boolean @default(false)
+
+  // Stored in hours, same unit as SHELF_LIFE_PRESETS in lib/types.ts. Only
+  // shelfLifeHours + todayPlusShelfLife currently drive the print page's
+  // automatic expiry calculation (see PrintLabelApp) — defrostLifeHours and
+  // directDefrostHours are captured for parity with the source system but
+  // not yet wired into that calculation.
+  defrostLifeHours   Int @default(0)
+  directDefrostHours Int @default(0)
+  shelfLifeHours     Int @default(0)
+  todayPlusShelfLife Boolean @default(false)
+
+  imageUrl  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([categoryId])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([companyId])
+}
