@@ -24,6 +24,16 @@ export function formatDateTimeShort(date: Date): string {
   return `${day}/${month} ${hours}:${minutes}`;
 }
 
+/** Formats a Date as dd/mm — used to print the EXP date on its own big line. */
+export function formatDateShort(date: Date): string {
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
+}
+
+/** Formats a Date as HH:mm — used to print the EXP time on its own big line. */
+export function formatTimeShort(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function addHours(date: Date, hours: number): Date {
   return new Date(date.getTime() + hours * 60 * 60 * 1000);
 }
