@@ -23,36 +23,69 @@ milik Item tersebut.
 
 Di dashboard project Vercel Anda, tab **Storage**:
 
-1. Buat database **Postgres** (Neon). Anda akan diberi dua connection
-   string — satu dengan `-pooler` di hostname (pooled) dan satu tanpa
-   (direct/unpooled).
-2. Buat **Blob** store.
-3. `vercel link` lalu `vercel env pull .env.local` di project ini supaya
-   semua env var tersebut otomatis masuk ke `.env.local`. Atau salin manual
-   dari `.env.example` ke `.env` dan isi sendiri — lihat komentar di file itu
-   untuk tahu connection string mana yang pooled vs direct.
+1. Buat database **Postgres** (Neon) dan hubungkan ke project ini. Vercel
+   otomatis menambahkan `DATABASE_URL` (pooled, dipakai app saat runtime) dan
+   `DATABASE_URL_UNPOOLED` (direct, dipakai Prisma CLI untuk migrasi — lihat
+   `prisma.config.ts`), plus alias `POSTGRES_*`/`PG*` lain yang tidak perlu
+   disentuh.
+2. Buat **Blob** store dan hubungkan ke project ini. Vercel otomatis
+   menambahkan `BLOB_STORE_ID` + `VERCEL_OIDC_TOKEN` — `@vercel/blob`
+   memakai OIDC ini otomatis saat jalan di Vercel, tidak perlu token statis.
+3. Set `AUTH_SECRET` (`openssl rand -base64 32` atau `npx auth secret`) dan
+   `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`/`SEED_COMPANY_NAME`/
+   `SEED_STORE_NAME` lewat `vercel env add <NAMA> production preview
+   development --value "..."` atau dashboard Settings → Environment
+   Variables.
 
-### 2. Migrasi & seed database
+**Catatan:** Vercel menandai `DATABASE_URL`/`DATABASE_URL_UNPOOLED` dan
+variabel Postgres lain sebagai *Sensitive* — nilainya tidak bisa ditarik ke
+lokal lewat `vercel env pull` (hanya muncul `"[SENSITIVE]"`). Karena itu
+migrasi & seed **tidak** dijalankan manual dari lokal, tapi otomatis lewat
+script `vercel-build` (lihat `package.json`) setiap kali Vercel build,
+memakai nilai asli yang cuma tersedia di lingkungan build/runtime Vercel.
+`prisma db seed` aman dijalankan berulang — skip otomatis kalau
+`SEED_ADMIN_EMAIL` sudah ada.
+
+### 2. Deploy
+
+```bash
+npx vercel --prod
+```
+
+Atau hubungkan repo ke [Vercel](https://vercel.com/new) lewat dashboard
+untuk deploy otomatis tiap push ke `main`.
+
+### 3. Matikan "Vercel Authentication" (deployment protection)
+
+Secara default Vercel memasang SSO wall miliknya sendiri di depan URL
+`*.vercel.app` (terpisah dari `/login` aplikasi ini) — ini akan memblokir
+staf hotel yang belum punya akun di tim Vercel Anda. Kalau belum pakai
+custom domain (yang otomatis bebas dari wall ini), matikan di
+**Project Settings → Deployment Protection → Vercel Authentication**, atau
+lewat API:
+
+```bash
+curl -X PATCH "https://api.vercel.com/v9/projects/<PROJECT_ID>" \
+  -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" \
+  -d '{"ssoProtection": null}'
+```
+
+### 4. Jalankan lokal
 
 ```bash
 npm install
-npx prisma migrate dev --name init
-npx prisma db seed
-```
-
-`prisma db seed` membuat satu Company, satu Store, dan satu user
-`COMPANY_ADMIN` dari `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`/
-`SEED_COMPANY_NAME`/`SEED_STORE_NAME` di `.env` — ini satu-satunya cara
-membuat akun admin pertama, tidak ada halaman sign-up publik.
-
-### 3. Jalankan lokal
-
-```bash
 npm run dev
 ```
 
 Buka [http://localhost:3000/login](http://localhost:3000/login), masuk
-dengan kredensial seed di atas.
+dengan kredensial `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`. Lokal tetap
+butuh koneksi ke Postgres production yang sama (tidak ada DB lokal
+terpisah) — jalankan `vercel env pull` untuk environment `development` agar
+`AUTH_SECRET` dkk tersedia; nilai Postgres/Blob tidak akan ikut ter-pull
+(sensitive), jadi fitur yang butuh DB (login, data master, halaman cetak)
+hanya benar-benar bisa dites dari deployment Vercel, bukan `npm run dev` di
+lokal, kecuali Anda menambahkan `DATABASE_URL`/`DATABASE_URL_UNPOOLED`
+sendiri ke environment `development`.
 
 ## Mengisi Data Master
 
@@ -121,21 +154,9 @@ font (`multiplier`) semuanya konstanta di file itu. Kalau posisi teks meleset
 di label fisik (tergantung kalibrasi gap sensor tiap unit printer), sesuaikan
 angka `x,y` di sana lalu tes ulang cetak.
 
-## Deploy ke Vercel
-
-```bash
-npx vercel --prod
-```
-
-Atau hubungkan repo ini ke [Vercel](https://vercel.com/new) lewat dashboard
-untuk deploy otomatis tiap push. Pastikan environment variable di
-`.env.example` sudah diisi di project Vercel (Storage tab biasanya mengisi
-`DATABASE_URL`/`DIRECT_URL`/`BLOB_READ_WRITE_TOKEN` otomatis saat resource
-dibuat lewat dashboard). Jalankan `npx prisma migrate deploy` (bukan
-`migrate dev`) terhadap database production sebelum atau saat deploy pertama.
-
-Setelah deploy, login dan ulangi tes hubungkan printer & cetak dari domain
-Vercel (HTTPS) untuk memastikan WebUSB tetap berfungsi di production.
+Setelah deploy (lihat "Setup awal" di atas), login dan ulangi tes hubungkan
+printer & cetak dari domain Vercel (HTTPS) untuk memastikan WebUSB tetap
+berfungsi di production.
 
 ## Batasan versi ini
 
