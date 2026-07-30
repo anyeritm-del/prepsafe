@@ -2,28 +2,6 @@ function pad(n: number): string {
   return n.toString().padStart(2, "0");
 }
 
-/** Formats a Date as dd/mm/yyyy HH:mm for the on-screen preview. */
-export function formatDateTime(date: Date): string {
-  const day = pad(date.getDate());
-  const month = pad(date.getMonth() + 1);
-  const year = date.getFullYear();
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-}
-
-/**
- * Formats a Date as dd/mm HH:mm (no year) for the physical TSPL print,
- * where every character costs printable width at large font sizes.
- */
-export function formatDateTimeShort(date: Date): string {
-  const day = pad(date.getDate());
-  const month = pad(date.getMonth() + 1);
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  return `${day}/${month} ${hours}:${minutes}`;
-}
-
 /** Formats a Date as dd/mm — used to print the EXP date on its own big line. */
 export function formatDateShort(date: Date): string {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
