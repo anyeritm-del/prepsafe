@@ -1,5 +1,5 @@
 import { LabelData } from "./types";
-import { formatDateTimeShort, formatDateShort, formatTimeShort } from "./format";
+import { formatDateShort, formatTimeShort } from "./format";
 
 // Measured from the physical label stock with a ruler — not the 55x30mm
 // originally assumed. Update these if you switch to a different label size.
@@ -17,8 +17,8 @@ const WIDTH_BUDGET_CHAR_MULT_UNITS = 70;
 // working estimate to keep lines from overflowing the 26mm/208-dot label
 // height. Adjust if lines end up clipped at the bottom or overly spaced.
 const DOTS_PER_MULT_HEIGHT = 8;
-const LINE_GAP_DOTS = 6;
-const TOP_MARGIN_DOTS = 8;
+const LINE_GAP_DOTS = 4;
+const TOP_MARGIN_DOTS = 4;
 const LEFT_MARGIN_DOTS = 8;
 // EXP is the food-safety-critical field: printed as its own date line and
 // time line (rather than one combined "dd/mm HH:mm" line) so each is short
@@ -41,7 +41,10 @@ function fittingMultiplier(text: string, max: number): number {
 
 export function generateLabelTspl(data: LabelData, copies: number): string {
   const productName = sanitize(data.productName);
-  const prepByLine = `Prep ${formatDateTimeShort(data.preparedAt)}  By ${sanitize(data.preparedBy)}`;
+  // Prepared *date* is dropped here (kept in the on-screen preview) so this
+  // line is short enough to earn a bigger multiplier than a bare mult-2 —
+  // it's still assumed to be today unless someone reads the full preview.
+  const prepByLine = `Prep ${formatTimeShort(data.preparedAt)} By ${sanitize(data.preparedBy)}`;
 
   // Supporting fields (name, prepared time, staff) are kept small and
   // compact so the two big EXP lines below have room to be as large as
@@ -50,7 +53,7 @@ export function generateLabelTspl(data: LabelData, copies: number): string {
     [productName, fittingMultiplier(productName, 2)],
     [formatDateShort(data.expiresAt), EXP_MULT],
     [formatTimeShort(data.expiresAt), EXP_MULT],
-    [prepByLine, fittingMultiplier(prepByLine, 2)],
+    [prepByLine, fittingMultiplier(prepByLine, 4)],
   ];
 
   const safeCopies = Math.max(1, Math.floor(copies) || 1);
