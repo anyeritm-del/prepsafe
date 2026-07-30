@@ -10,6 +10,14 @@ function readMarginMm(formData: FormData, field: string, fallback: number): numb
   return Number.isFinite(value) && value >= 0 ? value : fallback;
 }
 
+/** Reads an optional manual mult override: blank input means "Auto" (null). */
+function readOptionalMult(formData: FormData, field: string): number | null {
+  const raw = String(formData.get(field) ?? "").trim();
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 2 ? Math.floor(value) : null;
+}
+
 async function readStoreInput(formData: FormData, companyId: string) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Nama store wajib diisi.");
@@ -29,6 +37,11 @@ async function readStoreInput(formData: FormData, companyId: string) {
     labelMarginBottomMm: readMarginMm(formData, "labelMarginBottomMm", 1),
     labelMarginLeftMm: readMarginMm(formData, "labelMarginLeftMm", 1),
     labelMarginRightMm: readMarginMm(formData, "labelMarginRightMm", 1),
+    labelNameMult: readOptionalMult(formData, "labelNameMult"),
+    labelRow1Mult: readOptionalMult(formData, "labelRow1Mult"),
+    labelRow2Mult: readOptionalMult(formData, "labelRow2Mult"),
+    labelClerkMult: readOptionalMult(formData, "labelClerkMult"),
+    labelStatusMult: readOptionalMult(formData, "labelStatusMult"),
   };
 }
 

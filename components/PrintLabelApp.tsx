@@ -5,7 +5,13 @@ import { useMemo, useState } from "react";
 import { LabelPreview } from "@/components/LabelPreview";
 import { PrinterConnect } from "@/components/PrinterConnect";
 import { addHours, startOfToday } from "@/lib/format";
-import { generateLabelTspl, LABEL_WIDTH_MM, LABEL_HEIGHT_MM, LabelMargins } from "@/lib/tspl";
+import {
+  generateLabelTspl,
+  LABEL_WIDTH_MM,
+  LABEL_HEIGHT_MM,
+  LabelMargins,
+  LabelMultOverrides,
+} from "@/lib/tspl";
 import { LabelData } from "@/lib/types";
 import { PrinterConnection, sendToPrinter } from "@/lib/webusb";
 
@@ -16,6 +22,11 @@ export interface PrintStore {
   labelMarginBottomMm: number;
   labelMarginLeftMm: number;
   labelMarginRightMm: number;
+  labelNameMult: number | null;
+  labelRow1Mult: number | null;
+  labelRow2Mult: number | null;
+  labelClerkMult: number | null;
+  labelStatusMult: number | null;
 }
 
 export interface PrintClerk {
@@ -77,6 +88,15 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
         rightMm: selectedStore.labelMarginRightMm,
       }
     : undefined;
+  const multOverrides: LabelMultOverrides | undefined = selectedStore
+    ? {
+        name: selectedStore.labelNameMult,
+        row1: selectedStore.labelRow1Mult,
+        row2: selectedStore.labelRow2Mult,
+        clerk: selectedStore.labelClerkMult,
+        status: selectedStore.labelStatusMult,
+      }
+    : undefined;
 
   const storeClerks = useMemo(
     () => data.clerks.filter((c) => c.storeId === storeId),
@@ -129,7 +149,7 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
     if (!labelData || !connection) return;
     setPrintStatus({ state: "printing" });
     try {
-      const tspl = generateLabelTspl(labelData, 1, margins);
+      const tspl = generateLabelTspl(labelData, 1, margins, multOverrides);
       await sendToPrinter(connection, tspl);
       setPrintStatus({ state: "success" });
       setCategoryId(null);
@@ -283,7 +303,7 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
 
       {labelData && (
         <div className="flex flex-col items-start gap-4">
-          <LabelPreview data={labelData} margins={margins} />
+          <LabelPreview data={labelData} margins={margins} multOverrides={multOverrides} />
           <button
             type="button"
             onClick={handlePrint}

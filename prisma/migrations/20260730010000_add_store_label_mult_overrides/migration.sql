@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Store" ADD COLUMN "labelNameMult" INTEGER;
+ALTER TABLE "Store" ADD COLUMN "labelRow1Mult" INTEGER;
+ALTER TABLE "Store" ADD COLUMN "labelRow2Mult" INTEGER;
+ALTER TABLE "Store" ADD COLUMN "labelClerkMult" INTEGER;
+ALTER TABLE "Store" ADD COLUMN "labelStatusMult" INTEGER;

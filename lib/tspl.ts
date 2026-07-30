@@ -55,6 +55,18 @@ export interface LabelElement {
 interface FieldSpec {
   text: string;
   bold?: boolean;
+  /** Manual size override — skips auto-fit for this field entirely. */
+  fixedMult?: number;
+}
+
+/** Manual per-field size overrides (TSPL multiplier). Undefined/null means
+ * "Auto" — sized by the fit-to-box algorithm below. */
+export interface LabelMultOverrides {
+  name?: number | null;
+  row1?: number | null;
+  row2?: number | null;
+  clerk?: number | null;
+  status?: number | null;
 }
 
 /** Strips characters that would break out of a TSPL quoted string literal. */
@@ -67,13 +79,14 @@ function dateTime(date: Date): string {
 }
 
 /**
- * Stacks `fields` top to bottom, each as large as it can be, filling as
- * much of the available width×height box as possible instead of using a
- * fixed per-field size cap (which was leaving visible blank space). For
- * each candidate uniform multiplier `m`, every field is sized to
- * `min(m, its own width-fit limit)` — short fields keep growing with `m`
- * past where longer ones have already maxed out their own width — and the
- * search keeps the largest `m` whose resulting stack still fits the
+ * Stacks `fields` top to bottom. Fields with a manual `fixedMult` use it
+ * exactly, as-is (even if it overflows — that's the point of a manual
+ * override). The rest are auto-fit into whatever width×height remains
+ * after subtracting the fixed fields' own height: for each candidate
+ * uniform multiplier `m`, every auto field is sized to `min(m, its own
+ * width-fit limit)` — short fields keep growing with `m` past where
+ * longer ones have already maxed out their own width — and the search
+ * keeps the largest `m` whose resulting stack still fits the remaining
  * height budget.
  */
 function layoutStackedFields(
@@ -83,25 +96,39 @@ function layoutStackedFields(
 ): Array<{ mult: number }> {
   if (fields.length === 0) return [];
 
-  const widthCaps = fields.map((f) =>
-    Math.max(2, Math.floor(availWidthDots / (Math.max(f.text.length, 1) * DOTS_PER_CHAR_UNIT))),
+  const gapsHeight = (fields.length - 1) * LINE_GAP_DOTS;
+  const fixedHeight = fields.reduce(
+    (sum, f) => sum + (f.fixedMult ? f.fixedMult * DOTS_PER_MULT_HEIGHT : 0),
+    0,
+  );
+  const availHeightForAuto = availHeightDots - gapsHeight - fixedHeight;
+
+  const autoIndexes = fields.reduce<number[]>((acc, f, i) => {
+    if (!f.fixedMult) acc.push(i);
+    return acc;
+  }, []);
+  const widthCaps = autoIndexes.map((i) =>
+    Math.max(2, Math.floor(availWidthDots / (Math.max(fields[i].text.length, 1) * DOTS_PER_CHAR_UNIT))),
   );
 
   const stackHeight = (mults: number[]) =>
-    mults.reduce((sum, mult) => sum + mult * DOTS_PER_MULT_HEIGHT, 0) +
-    (fields.length - 1) * LINE_GAP_DOTS;
+    mults.reduce((sum, mult) => sum + mult * DOTS_PER_MULT_HEIGHT, 0);
 
-  let best = widthCaps.map(() => 2);
+  let bestAuto = widthCaps.map(() => 2);
   for (let m = 2; m <= MAX_MULT_CEILING; m++) {
     const candidate = widthCaps.map((cap) => Math.min(cap, m));
-    if (stackHeight(candidate) <= availHeightDots) {
-      best = candidate;
+    if (stackHeight(candidate) <= availHeightForAuto) {
+      bestAuto = candidate;
     } else {
       break;
     }
   }
 
-  return best.map((mult) => ({ mult }));
+  const result = fields.map((f) => ({ mult: f.fixedMult ?? 2 }));
+  autoIndexes.forEach((fieldIndex, autoI) => {
+    result[fieldIndex] = { mult: bestAuto[autoI] };
+  });
+  return result;
 }
 
 /**
@@ -115,6 +142,7 @@ function layoutStackedFields(
 export function buildLabelElements(
   data: LabelData,
   margins: LabelMargins = DEFAULT_LABEL_MARGINS,
+  overrides: LabelMultOverrides = {},
 ): LabelElement[] {
   const isThawing = data.status === "THAWING";
   const productName = sanitize(data.productName);
@@ -123,13 +151,17 @@ export function buildLabelElements(
   const row2Line = `${isThawing ? "Prep By" : "EXP"} ${dateTime(data.expiresAt)}`;
 
   const fields: FieldSpec[] = [
-    { text: productName, bold: true },
-    { text: row1Line },
-    { text: row2Line },
-    { text: clerkLine },
+    { text: productName, bold: true, fixedMult: overrides.name ?? undefined },
+    { text: row1Line, fixedMult: overrides.row1 ?? undefined },
+    { text: row2Line, fixedMult: overrides.row2 ?? undefined },
+    { text: clerkLine, fixedMult: overrides.clerk ?? undefined },
   ];
   if (data.status) {
-    fields.push({ text: `-- ${sanitize(data.status)} --`, bold: true });
+    fields.push({
+      text: `-- ${sanitize(data.status)} --`,
+      bold: true,
+      fixedMult: overrides.status ?? undefined,
+    });
   }
 
   const leftDots = margins.leftMm * DOTS_PER_MM;
@@ -152,10 +184,11 @@ export function generateLabelTspl(
   data: LabelData,
   copies: number,
   margins: LabelMargins = DEFAULT_LABEL_MARGINS,
+  overrides: LabelMultOverrides = {},
 ): string {
   const safeCopies = Math.max(1, Math.floor(copies) || 1);
 
-  const textCommands = buildLabelElements(data, margins).flatMap((el) => {
+  const textCommands = buildLabelElements(data, margins, overrides).flatMap((el) => {
     const command = `TEXT ${el.x},${el.y},"0",0,${el.mult},${el.mult},"${el.text}"`;
     return el.bold ? [command, `TEXT ${el.x + 1},${el.y},"0",0,${el.mult},${el.mult},"${el.text}"`] : [command];
   });

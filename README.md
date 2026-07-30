@@ -164,6 +164,11 @@ Preview di halaman cetak memakai margin Store yang sedang dipilih dan dijamin
 sama persis dengan yang akan tercetak (lihat `buildLabelElements` di
 [`lib/tspl.ts`](lib/tspl.ts) — dipakai bersama oleh preview & generator TSPL).
 
+Di form Store yang sama juga ada **Ukuran Font (mult)** per field (Nama,
+Prep/OOF, EXP/Prep By, Clerk, Status) — kosongkan untuk Otomatis, atau isi
+angka untuk memaksa ukuran itu persis (field lain yang masih Otomatis akan
+menyesuaikan ke sisa ruang yang ada).
+
 Constants lain (ukuran kertas 56x26mm, resolusi 8 dot/mm) ada di
 [`lib/tspl.ts`](lib/tspl.ts) kalau perlu diubah untuk printer/label lain.
 

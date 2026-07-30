@@ -8,6 +8,11 @@ interface StoreFormProps {
     labelMarginBottomMm: number;
     labelMarginLeftMm: number;
     labelMarginRightMm: number;
+    labelNameMult: number | null;
+    labelRow1Mult: number | null;
+    labelRow2Mult: number | null;
+    labelClerkMult: number | null;
+    labelStatusMult: number | null;
   };
   submitLabel: string;
 }
@@ -91,6 +96,71 @@ export function StoreForm({ action, regions, defaultValues, submitLabel }: Store
               min={0}
               step={0.5}
               defaultValue={defaultValues?.labelMarginRightMm ?? 1}
+              className={inputClass}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3">
+        <p className="text-sm font-medium text-neutral-700">Ukuran Font (mult)</p>
+        <p className="text-xs text-neutral-500">
+          Kosongkan untuk Otomatis (menyesuaikan ruang yang tersisa). Isi angka untuk memaksa
+          ukuran itu persis, tidak peduli sisa ruang.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-neutral-700">Nama Produk</span>
+            <input
+              type="number"
+              name="labelNameMult"
+              min={2}
+              placeholder="Auto"
+              defaultValue={defaultValues?.labelNameMult ?? ""}
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-neutral-700">Prep / OOF</span>
+            <input
+              type="number"
+              name="labelRow1Mult"
+              min={2}
+              placeholder="Auto"
+              defaultValue={defaultValues?.labelRow1Mult ?? ""}
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-neutral-700">EXP / Prep By</span>
+            <input
+              type="number"
+              name="labelRow2Mult"
+              min={2}
+              placeholder="Auto"
+              defaultValue={defaultValues?.labelRow2Mult ?? ""}
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-neutral-700">Clerk</span>
+            <input
+              type="number"
+              name="labelClerkMult"
+              min={2}
+              placeholder="Auto"
+              defaultValue={defaultValues?.labelClerkMult ?? ""}
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-neutral-700">Status (Thawing)</span>
+            <input
+              type="number"
+              name="labelStatusMult"
+              min={2}
+              placeholder="Auto"
+              defaultValue={defaultValues?.labelStatusMult ?? ""}
               className={inputClass}
             />
           </label>

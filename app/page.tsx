@@ -27,6 +27,11 @@ export default async function Home() {
       labelMarginBottomMm: s.labelMarginBottomMm,
       labelMarginLeftMm: s.labelMarginLeftMm,
       labelMarginRightMm: s.labelMarginRightMm,
+      labelNameMult: s.labelNameMult,
+      labelRow1Mult: s.labelRow1Mult,
+      labelRow2Mult: s.labelRow2Mult,
+      labelClerkMult: s.labelClerkMult,
+      labelStatusMult: s.labelStatusMult,
     })),
     clerks: clerks.map((c) => ({
       id: c.id,
