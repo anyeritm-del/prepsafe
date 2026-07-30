@@ -104,8 +104,9 @@ Setelah login, buka **Administration** di nav bar:
    bukan dari jam saat dicetak. Isi `Defrost Life`/`Direct Defrost` (jam)
    kalau item ini juga bisa di-thaw — begitu salah satunya diisi, halaman
    cetak menampilkan pilihan mode **Prep Normal** vs **Thawing**, dan mode
-   Thawing menghitung EXP dari durasi itu (bukan Shelf Life) serta mencetak
-   status `-- THAWING --` di label.
+   Thawing menghitung EXP dari durasi itu (bukan Shelf Life), mengganti label
+   baris jadi **OOF**/**Prep By**, serta mencetak tag `THAWING` sejajar di
+   sebelah baris Prep By (bukan baris terpisah).
 6. **Clerks** — staf yang muncul sebagai pilihan foto di halaman cetak.
 
 Halaman cetak (`/`) otomatis menampilkan data yang baru dibuat begitu ada
@@ -168,7 +169,9 @@ sama persis dengan yang akan tercetak (lihat `buildLabelElements` di
 Di form Store yang sama juga ada **Ukuran Font (mult)** per field (Nama,
 Prep/OOF, EXP/Prep By, Clerk, Status) — kosongkan untuk Otomatis, atau isi
 angka untuk memaksa ukuran itu persis (field lain yang masih Otomatis akan
-menyesuaikan ke sisa ruang yang ada).
+menyesuaikan ke sisa ruang yang ada). "Status" di sini mengatur ukuran tag
+`THAWING` yang tercetak sejajar di sebelah baris EXP/Prep By, bukan baris
+tersendiri — Otomatis berarti ukurannya sama dengan baris EXP/Prep By.
 
 Constants lain (ukuran kertas 56x26mm, resolusi 8 dot/mm) ada di
 [`lib/tspl.ts`](lib/tspl.ts) kalau perlu diubah untuk printer/label lain.

@@ -61,6 +61,10 @@ interface FieldSpec {
   bold?: boolean;
   /** Manual size override — skips auto-fit for this field entirely. */
   fixedMult?: number;
+  /** When set, the auto-fit width cap is computed from this text's length
+   * instead of `text`'s — used by row2 to reserve room for the inline
+   * THAWING tag printed beside it without changing what's rendered. */
+  widthText?: string;
 }
 
 /** Manual per-field size overrides (TSPL multiplier). Undefined/null means
@@ -70,6 +74,7 @@ export interface LabelMultOverrides {
   row1?: number | null;
   row2?: number | null;
   clerk?: number | null;
+  /** Mult for the inline THAWING tag beside row2. Auto = same size as row2. */
   status?: number | null;
 }
 
@@ -112,9 +117,10 @@ function layoutStackedFields(
     if (!f.fixedMult) acc.push(i);
     return acc;
   }, []);
-  const widthCaps = autoIndexes.map((i) =>
-    Math.max(2, Math.floor(availWidthDots / (Math.max(fields[i].text.length, 1) * DOTS_PER_CHAR_UNIT))),
-  );
+  const widthCaps = autoIndexes.map((i) => {
+    const widthText = fields[i].widthText ?? fields[i].text;
+    return Math.max(2, Math.floor(availWidthDots / (Math.max(widthText.length, 1) * DOTS_PER_CHAR_UNIT)));
+  });
 
   const stackHeight = (mults: number[]) =>
     mults.reduce((sum, mult) => sum + mult * DOTS_PER_MULT_HEIGHT, 0);
@@ -139,10 +145,11 @@ function layoutStackedFields(
 /**
  * Stacked full-width lines, auto-sized to fill the printable area (label
  * size minus `margins`): bold product name, "OOF"/"Prep By" (Thawing) or
- * "Prep"/"EXP" (normal) date-time lines, a Clerk line, and an optional
- * status line. Returns element positions in dots; use `generateLabelTspl`
- * for the printer or render these directly (scaled) for an on-screen
- * preview.
+ * "Prep"/"EXP" (normal) date-time lines, and a Clerk line. When `status` is
+ * set (Thawing), it's printed inline beside the row2 (EXP/Prep-By) line
+ * instead of as its own row. Returns element positions in dots; use
+ * `generateLabelTspl` for the printer or render these directly (scaled)
+ * for an on-screen preview.
  */
 export function buildLabelElements(
   data: LabelData,
@@ -154,20 +161,21 @@ export function buildLabelElements(
   const clerkLine = `Clerk: ${sanitize(data.preparedBy)}`;
   const row1Line = `${isThawing ? "OOF" : "Prep"} ${dateTime(data.preparedAt)}`;
   const row2Line = `${isThawing ? "Prep By" : "EXP"} ${dateTime(data.expiresAt)}`;
+  const statusText = data.status ? sanitize(data.status) : null;
+  const ROW2_INDEX = 2;
 
   const fields: FieldSpec[] = [
     { text: productName, bold: true, fixedMult: overrides.name ?? undefined },
     { text: row1Line, fixedMult: overrides.row1 ?? undefined },
-    { text: row2Line, fixedMult: overrides.row2 ?? undefined },
+    {
+      text: row2Line,
+      fixedMult: overrides.row2 ?? undefined,
+      // Reserve room on this line for the inline THAWING tag (plus a
+      // one-char gap) so row2's own auto-fit size doesn't crowd it out.
+      widthText: statusText ? `${row2Line} ${statusText}` : undefined,
+    },
     { text: clerkLine, fixedMult: overrides.clerk ?? undefined },
   ];
-  if (data.status) {
-    fields.push({
-      text: `-- ${sanitize(data.status)} --`,
-      bold: true,
-      fixedMult: overrides.status ?? undefined,
-    });
-  }
 
   const leftDots = margins.leftMm * DOTS_PER_MM;
   const lineGapDots = margins.lineGapMm * DOTS_PER_MM;
@@ -178,12 +186,26 @@ export function buildLabelElements(
   const sizes = layoutStackedFields(fields, availWidthDots, availHeightDots, lineGapDots);
 
   let y = margins.topMm * DOTS_PER_MM;
-  return fields.map((field, i) => {
+  const elements: LabelElement[] = [];
+  fields.forEach((field, i) => {
     const mult = sizes[i].mult;
-    const element: LabelElement = { x: leftDots, y, mult, text: field.text, bold: field.bold };
+    elements.push({ x: leftDots, y, mult, text: field.text, bold: field.bold });
+
+    if (i === ROW2_INDEX && statusText) {
+      const row2WidthDots = field.text.length * mult * DOTS_PER_CHAR_UNIT;
+      const gapDots = mult * DOTS_PER_CHAR_UNIT;
+      elements.push({
+        x: leftDots + row2WidthDots + gapDots,
+        y,
+        mult: overrides.status ?? mult,
+        text: statusText,
+        bold: true,
+      });
+    }
+
     y += mult * DOTS_PER_MULT_HEIGHT + lineGapDots;
-    return element;
   });
+  return elements;
 }
 
 export function generateLabelTspl(
