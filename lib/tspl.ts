@@ -17,18 +17,19 @@ const DOTS_PER_CHAR_UNIT = (LABEL_WIDTH_MM * DOTS_PER_MM) / 70;
 // working estimate for how tall one multiplier unit of font "0" prints.
 // Adjust if lines end up clipped or under-filling the label height.
 export const DOTS_PER_MULT_HEIGHT = 8;
-const LINE_GAP_DOTS = 8;
 // The largest multiplier the auto-fit search below will try, as a sanity
 // ceiling — no realistic label content should ever need more than this.
 const MAX_MULT_CEILING = 20;
 
-/** Margins (mm) around the printable area — adjustable per Store so each
- * printer/label setup can be calibrated without a code change. */
+/** Margins (mm) around the printable area, plus vertical line spacing —
+ * adjustable per Store so each printer/label setup can be calibrated
+ * without a code change. */
 export interface LabelMargins {
   topMm: number;
   bottomMm: number;
   leftMm: number;
   rightMm: number;
+  lineGapMm: number;
 }
 
 // A prior calibration round found text near the very top edge (y=10 dots,
@@ -39,6 +40,7 @@ export const DEFAULT_LABEL_MARGINS: LabelMargins = {
   bottomMm: 1,
   leftMm: 1,
   rightMm: 1,
+  lineGapMm: 1,
 };
 
 /** One piece of text to render, in printer dots — shared by the TSPL
@@ -93,10 +95,11 @@ function layoutStackedFields(
   fields: FieldSpec[],
   availWidthDots: number,
   availHeightDots: number,
+  lineGapDots: number,
 ): Array<{ mult: number }> {
   if (fields.length === 0) return [];
 
-  const gapsHeight = (fields.length - 1) * LINE_GAP_DOTS;
+  const gapsHeight = (fields.length - 1) * lineGapDots;
   const fixedHeight = fields.reduce(
     (sum, f) => sum + (f.fixedMult ? f.fixedMult * DOTS_PER_MULT_HEIGHT : 0),
     0,
@@ -165,17 +168,18 @@ export function buildLabelElements(
   }
 
   const leftDots = margins.leftMm * DOTS_PER_MM;
+  const lineGapDots = margins.lineGapMm * DOTS_PER_MM;
   const availWidthDots = LABEL_WIDTH_MM * DOTS_PER_MM - leftDots - margins.rightMm * DOTS_PER_MM;
   const availHeightDots =
     LABEL_HEIGHT_MM * DOTS_PER_MM - margins.topMm * DOTS_PER_MM - margins.bottomMm * DOTS_PER_MM;
 
-  const sizes = layoutStackedFields(fields, availWidthDots, availHeightDots);
+  const sizes = layoutStackedFields(fields, availWidthDots, availHeightDots, lineGapDots);
 
   let y = margins.topMm * DOTS_PER_MM;
   return fields.map((field, i) => {
     const mult = sizes[i].mult;
     const element: LabelElement = { x: leftDots, y, mult, text: field.text, bold: field.bold };
-    y += mult * DOTS_PER_MULT_HEIGHT + LINE_GAP_DOTS;
+    y += mult * DOTS_PER_MULT_HEIGHT + lineGapDots;
     return element;
   });
 }

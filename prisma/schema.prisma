@@ -51,6 +51,8 @@ model Store {
   labelMarginBottomMm Float @default(1)
   labelMarginLeftMm   Float @default(1)
   labelMarginRightMm  Float @default(1)
+  // Vertical spacing (mm) between each printed line.
+  labelLineGapMm      Float @default(1)
 
   // Manual font-size overrides (TSPL multiplier) per field. Null means
   // "Auto" — sized by the fit-to-box algorithm in lib/tspl.ts.

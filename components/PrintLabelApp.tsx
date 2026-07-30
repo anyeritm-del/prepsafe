@@ -22,6 +22,7 @@ export interface PrintStore {
   labelMarginBottomMm: number;
   labelMarginLeftMm: number;
   labelMarginRightMm: number;
+  labelLineGapMm: number;
   labelNameMult: number | null;
   labelRow1Mult: number | null;
   labelRow2Mult: number | null;
@@ -86,6 +87,7 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
         bottomMm: selectedStore.labelMarginBottomMm,
         leftMm: selectedStore.labelMarginLeftMm,
         rightMm: selectedStore.labelMarginRightMm,
+        lineGapMm: selectedStore.labelLineGapMm,
       }
     : undefined;
   const multOverrides: LabelMultOverrides | undefined = selectedStore

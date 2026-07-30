@@ -8,6 +8,7 @@ interface StoreFormProps {
     labelMarginBottomMm: number;
     labelMarginLeftMm: number;
     labelMarginRightMm: number;
+    labelLineGapMm: number;
     labelNameMult: number | null;
     labelRow1Mult: number | null;
     labelRow2Mult: number | null;
@@ -96,6 +97,17 @@ export function StoreForm({ action, regions, defaultValues, submitLabel }: Store
               min={0}
               step={0.5}
               defaultValue={defaultValues?.labelMarginRightMm ?? 1}
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-neutral-700">Jarak antar baris</span>
+            <input
+              type="number"
+              name="labelLineGapMm"
+              min={0}
+              step={0.5}
+              defaultValue={defaultValues?.labelLineGapMm ?? 1}
               className={inputClass}
             />
           </label>

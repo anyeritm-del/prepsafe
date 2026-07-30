@@ -27,6 +27,7 @@ export default async function Home() {
       labelMarginBottomMm: s.labelMarginBottomMm,
       labelMarginLeftMm: s.labelMarginLeftMm,
       labelMarginRightMm: s.labelMarginRightMm,
+      labelLineGapMm: s.labelLineGapMm,
       labelNameMult: s.labelNameMult,
       labelRow1Mult: s.labelRow1Mult,
       labelRow2Mult: s.labelRow2Mult,

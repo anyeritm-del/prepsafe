@@ -37,6 +37,7 @@ async function readStoreInput(formData: FormData, companyId: string) {
     labelMarginBottomMm: readMarginMm(formData, "labelMarginBottomMm", 1),
     labelMarginLeftMm: readMarginMm(formData, "labelMarginLeftMm", 1),
     labelMarginRightMm: readMarginMm(formData, "labelMarginRightMm", 1),
+    labelLineGapMm: readMarginMm(formData, "labelLineGapMm", 1),
     labelNameMult: readOptionalMult(formData, "labelNameMult"),
     labelRow1Mult: readOptionalMult(formData, "labelRow1Mult"),
     labelRow2Mult: readOptionalMult(formData, "labelRow2Mult"),

@@ -150,10 +150,11 @@ sama. Kalau nanti printer perlu dipakai lagi lewat aplikasi Windows biasa
 macOS dan Linux umumnya tidak mengalami masalah ini karena tidak ada driver
 printer class bawaan yang mengklaim device secara eksklusif.
 
-## Kalibrasi label (margin)
+## Kalibrasi label (margin & jarak baris)
 
 Setiap **Store** punya pengaturan margin cetak sendiri (atas/bawah/kiri/kanan
-dalam mm) — edit di **Administration → Stores → Edit**. Ukuran font tiap
+dalam mm) plus **jarak antar baris** (mm) — edit di
+**Administration → Stores → Edit**. Ukuran font tiap
 baris (nama, EXP, prep, clerk) dihitung otomatis untuk memenuhi ruang yang
 tersisa setelah margin itu — jadi menaikkan margin akan mengecilkan teks
 (memberi ruang kosong lebih di tepi), sedangkan menurunkan margin akan
