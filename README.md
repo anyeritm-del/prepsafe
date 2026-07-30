@@ -101,9 +101,11 @@ Setelah login, buka **Administration** di nav bar:
    dibatasi ke satu Region).
 5. **Items** — di dalam Category, isi `Shelf Life` (jam) dan centang
    `TodayPlusShelfLife` kalau masa simpannya dihitung dari awal hari ini,
-   bukan dari jam saat dicetak. `Defrost Life`/`Direct Defrost` tersedia di
-   form tapi **belum** memengaruhi perhitungan tanggal exp otomatis (lihat
-   Batasan di bawah).
+   bukan dari jam saat dicetak. Isi `Defrost Life`/`Direct Defrost` (jam)
+   kalau item ini juga bisa di-thaw — begitu salah satunya diisi, halaman
+   cetak menampilkan pilihan mode **Prep Normal** vs **Thawing**, dan mode
+   Thawing menghitung EXP dari durasi itu (bukan Shelf Life) serta mencetak
+   status `-- THAWING --` di label.
 6. **Clerks** — staf yang muncul sebagai pilihan foto di halaman cetak.
 
 Halaman cetak (`/`) otomatis menampilkan data yang baru dibuat begitu ada
@@ -164,8 +166,8 @@ berfungsi di production.
 
 - Role `SUPER_ADMIN` (multi-company) ada di schema tapi belum ada UI-nya —
   setiap login `COMPANY_ADMIN` hanya mengelola satu Company miliknya sendiri.
-- `Defrost Life`/`Direct Defrost` di Item tersimpan tapi belum memengaruhi
-  perhitungan tanggal kedaluwarsa otomatis di halaman cetak (hanya
-  `Shelf Life` + `TodayPlusShelfLife` yang dipakai).
+- Kalau Item punya Defrost Life DAN Direct Defrost sekaligus, keduanya
+  ditampilkan sebagai pilihan mode terpisah — tidak ada logika yang memilih
+  otomatis di antara keduanya.
 - Tidak ada riwayat/log label yang pernah dicetak.
 - Satu printer aktif per browser/perangkat pada satu waktu.
