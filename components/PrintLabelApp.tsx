@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { LabelPreview } from "@/components/LabelPreview";
 import { PrinterConnect } from "@/components/PrinterConnect";
 import { addHours, startOfToday } from "@/lib/format";
-import { generateLabelTspl, generateCalibrationTspl, LABEL_WIDTH_MM, LABEL_HEIGHT_MM } from "@/lib/tspl";
+import { generateLabelTspl, LABEL_WIDTH_MM, LABEL_HEIGHT_MM } from "@/lib/tspl";
 import { LabelData } from "@/lib/types";
 import { PrinterConnection, sendToPrinter } from "@/lib/webusb";
 
@@ -36,6 +36,8 @@ export interface PrintItem {
   labelText: string;
   shelfLifeHours: number;
   todayPlusShelfLife: boolean;
+  defrostLifeHours: number;
+  directDefrostHours: number;
 }
 
 export interface PrintPageData {
@@ -51,14 +53,16 @@ type PrintStatus =
   | { state: "success" }
   | { state: "error"; message: string };
 
+type PrepMode = "normal" | "defrost" | "direct-defrost";
+
 export default function PrintLabelApp({ data }: { data: PrintPageData }) {
   const [storeId, setStoreId] = useState(data.stores[0]?.id ?? "");
   const [clerkId, setClerkId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
+  const [prepMode, setPrepMode] = useState<PrepMode>("normal");
   const [connection, setConnection] = useState<PrinterConnection | null>(null);
   const [printStatus, setPrintStatus] = useState<PrintStatus>({ state: "idle" });
-  const [calibrationStatus, setCalibrationStatus] = useState<PrintStatus>({ state: "idle" });
 
   const storeClerks = useMemo(
     () => data.clerks.filter((c) => c.storeId === storeId),
@@ -70,18 +74,42 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
     [data.items, categoryId],
   );
   const selectedItem = data.items.find((i) => i.id === itemId) ?? null;
+  const hasDefrostOptions = Boolean(
+    selectedItem && (selectedItem.defrostLifeHours > 0 || selectedItem.directDefrostHours > 0),
+  );
 
   const labelData: LabelData | null = useMemo(() => {
     if (!selectedClerk || !selectedItem) return null;
     const preparedAt = new Date();
+
+    if (prepMode === "defrost" && selectedItem.defrostLifeHours > 0) {
+      return {
+        productName: selectedItem.labelText,
+        preparedBy: selectedClerk.printName,
+        preparedAt,
+        expiresAt: addHours(preparedAt, selectedItem.defrostLifeHours),
+        status: "THAWING",
+      };
+    }
+    if (prepMode === "direct-defrost" && selectedItem.directDefrostHours > 0) {
+      return {
+        productName: selectedItem.labelText,
+        preparedBy: selectedClerk.printName,
+        preparedAt,
+        expiresAt: addHours(preparedAt, selectedItem.directDefrostHours),
+        status: "THAWING",
+      };
+    }
+
     const base = selectedItem.todayPlusShelfLife ? startOfToday(preparedAt) : preparedAt;
     return {
       productName: selectedItem.labelText,
       preparedBy: selectedClerk.printName,
       preparedAt,
       expiresAt: addHours(base, selectedItem.shelfLifeHours),
+      status: null,
     };
-  }, [selectedClerk, selectedItem]);
+  }, [selectedClerk, selectedItem, prepMode]);
 
   async function handlePrint() {
     if (!labelData || !connection) return;
@@ -92,24 +120,11 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
       setPrintStatus({ state: "success" });
       setCategoryId(null);
       setItemId(null);
+      setPrepMode("normal");
     } catch (err) {
       setPrintStatus({
         state: "error",
         message: err instanceof Error ? err.message : "Gagal mencetak label.",
-      });
-    }
-  }
-
-  async function handleCalibrationPrint() {
-    if (!connection) return;
-    setCalibrationStatus({ state: "printing" });
-    try {
-      await sendToPrinter(connection, generateCalibrationTspl());
-      setCalibrationStatus({ state: "success" });
-    } catch (err) {
-      setCalibrationStatus({
-        state: "error",
-        message: err instanceof Error ? err.message : "Gagal mencetak kalibrasi.",
       });
     }
   }
@@ -135,25 +150,6 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
       </div>
 
       <PrinterConnect connection={connection} onConnectionChange={setConnection} />
-
-      <div className="flex flex-col items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3">
-        <p className="text-sm text-amber-800">
-          Debug: cetak angka &quot;0123456789&quot; di dua ukuran (lebih besar dari sebelumnya).
-          Ukur tinggi huruf tiap baris pakai penggaris (mm), dan cek apakah ada yang kepotong
-          di tepi label.
-        </p>
-        <button
-          type="button"
-          onClick={handleCalibrationPrint}
-          disabled={!connection || calibrationStatus.state === "printing"}
-          className="rounded-md border border-amber-400 bg-white px-3 py-1.5 text-sm font-medium text-amber-800 disabled:opacity-50"
-        >
-          {calibrationStatus.state === "printing" ? "Mencetak..." : "Cetak Kalibrasi"}
-        </button>
-        {calibrationStatus.state === "error" && (
-          <p className="text-sm text-red-600">{calibrationStatus.message}</p>
-        )}
-      </div>
 
       {data.stores.length > 1 && (
         <label className="flex flex-col gap-1">
@@ -233,12 +229,41 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
                 <Tile
                   key={item.id}
                   selected={item.id === itemId}
-                  onClick={() => setItemId(item.id)}
+                  onClick={() => {
+                    setItemId(item.id);
+                    setPrepMode("normal");
+                  }}
                   label={item.buttonText}
                 />
               ))}
             </TileGrid>
           )}
+        </PickerSection>
+      )}
+
+      {selectedItem && hasDefrostOptions && (
+        <PickerSection title="Mode">
+          <TileGrid>
+            <Tile
+              label="Prep Normal"
+              selected={prepMode === "normal"}
+              onClick={() => setPrepMode("normal")}
+            />
+            {selectedItem.defrostLifeHours > 0 && (
+              <Tile
+                label="Thawing (Defrost Life)"
+                selected={prepMode === "defrost"}
+                onClick={() => setPrepMode("defrost")}
+              />
+            )}
+            {selectedItem.directDefrostHours > 0 && (
+              <Tile
+                label="Thawing (Direct Defrost)"
+                selected={prepMode === "direct-defrost"}
+                onClick={() => setPrepMode("direct-defrost")}
+              />
+            )}
+          </TileGrid>
         </PickerSection>
       )}
 

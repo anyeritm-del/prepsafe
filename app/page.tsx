@@ -37,6 +37,8 @@ export default async function Home() {
       labelText: i.labelText,
       shelfLifeHours: i.shelfLifeHours,
       todayPlusShelfLife: i.todayPlusShelfLife,
+      defrostLifeHours: i.defrostLifeHours,
+      directDefrostHours: i.directDefrostHours,
     })),
   };
 
