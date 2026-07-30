@@ -18,12 +18,15 @@ const WIDTH_BUDGET_CHAR_MULT_UNITS = 70;
 // height. Adjust if lines end up clipped at the bottom or overly spaced.
 const DOTS_PER_MULT_HEIGHT = 8;
 const LINE_GAP_DOTS = 6;
-const TOP_MARGIN_DOTS = 10;
+const TOP_MARGIN_DOTS = 8;
 const LEFT_MARGIN_DOTS = 8;
 // EXP is the food-safety-critical field: printed as its own date line and
 // time line (rather than one combined "dd/mm HH:mm" line) so each is short
 // enough to earn a much bigger multiplier out of the width budget above.
-const EXP_MULT = 7;
+// At mult 9, two EXP lines alone take ~150 of the label's 208-dot height —
+// there's only room left for two small (mult 2) supporting lines, so the
+// separate small "EXP" header was dropped to fit.
+const EXP_MULT = 9;
 
 /** Strips characters that would break out of a TSPL quoted string literal. */
 function sanitize(value: string): string {
@@ -44,8 +47,7 @@ export function generateLabelTspl(data: LabelData, copies: number): string {
   // compact so the two big EXP lines below have room to be as large as
   // possible — that's the one piece of info kitchen staff need at a glance.
   const fields: Array<[string, number]> = [
-    [productName, fittingMultiplier(productName, 3)],
-    ["EXP", 2],
+    [productName, fittingMultiplier(productName, 2)],
     [formatDateShort(data.expiresAt), EXP_MULT],
     [formatTimeShort(data.expiresAt), EXP_MULT],
     [prepByLine, fittingMultiplier(prepByLine, 2)],
