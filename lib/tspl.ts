@@ -13,10 +13,12 @@ export const DOTS_PER_MM = 8;
 // fits the ~56mm label width at multiplier 7 without clipping — i.e. about
 // 6.4 dots of width per (character × multiplier) unit.
 const DOTS_PER_CHAR_UNIT = (LABEL_WIDTH_MM * DOTS_PER_MM) / 70;
-// Not independently measured (no ruler reading was given for height) — a
-// working estimate for how tall one multiplier unit of font "0" prints.
-// Adjust if lines end up clipped or under-filling the label height.
-export const DOTS_PER_MULT_HEIGHT = 8;
+// Measured directly: "Udang Kupas" printed at multiplier 6 came out 3mm
+// tall, i.e. (3mm × 8 dots/mm) / 6 = 4 dots per multiplier unit. The
+// previous guess of 8 was reserving twice the real height per line,
+// which both left visible gaps between lines (even at line-gap 0) and
+// pushed later lines further down than necessary.
+export const DOTS_PER_MULT_HEIGHT = 4;
 // The largest multiplier the auto-fit search below will try, as a sanity
 // ceiling — no realistic label content should ever need more than this.
 const MAX_MULT_CEILING = 20;
