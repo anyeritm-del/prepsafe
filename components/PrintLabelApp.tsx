@@ -77,6 +77,7 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   const [prepMode, setPrepMode] = useState<PrepMode>("normal");
+  const [copies, setCopies] = useState(1);
   const [connection, setConnection] = useState<PrinterConnection | null>(null);
   const [printStatus, setPrintStatus] = useState<PrintStatus>({ state: "idle" });
 
@@ -151,12 +152,13 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
     if (!labelData || !connection) return;
     setPrintStatus({ state: "printing" });
     try {
-      const tspl = generateLabelTspl(labelData, 1, margins, multOverrides);
+      const tspl = generateLabelTspl(labelData, copies, margins, multOverrides);
       await sendToPrinter(connection, tspl);
       setPrintStatus({ state: "success" });
       setCategoryId(null);
       setItemId(null);
       setPrepMode("normal");
+      setCopies(1);
     } catch (err) {
       setPrintStatus({
         state: "error",
@@ -306,13 +308,28 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
       {labelData && (
         <div className="flex flex-col items-start gap-4">
           <LabelPreview data={labelData} margins={margins} multOverrides={multOverrides} />
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-neutral-700">Jumlah Cetak</span>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              value={copies}
+              onChange={(e) => setCopies(Math.max(1, Math.min(99, Number(e.target.value) || 1)))}
+              className="w-24 rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </label>
           <button
             type="button"
             onClick={handlePrint}
             disabled={!connection || printStatus.state === "printing"}
             className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {printStatus.state === "printing" ? "Mencetak..." : "Cetak Label"}
+            {printStatus.state === "printing"
+              ? "Mencetak..."
+              : copies > 1
+                ? `Cetak ${copies} Label`
+                : "Cetak Label"}
           </button>
           {printStatus.state === "success" && (
             <p className="text-sm text-green-600">Label berhasil dikirim ke printer.</p>
