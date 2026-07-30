@@ -17,23 +17,27 @@ const WIDTH_BUDGET_CHAR_MULT_UNITS = 70;
 // working estimate to keep lines from overflowing the 26mm/208-dot label
 // height. Adjust if lines end up clipped at the bottom or overly spaced.
 const DOTS_PER_MULT_HEIGHT = 8;
-const LINE_GAP_DOTS = 4;
+const LINE_GAP_DOTS = 8;
 // A prior calibration round found y=10 got clipped at the physical top
-// edge while y=25 printed fine — keep this at 18+ even when squeezed for
-// height elsewhere.
-const TOP_MARGIN_DOTS = 18;
+// edge while y=25 printed fine.
+const TOP_MARGIN_DOTS = 20;
 const LEFT_MARGIN_DOTS = 8;
 
-// Requested sizing: product name as large as possible (bold) and the
-// clerk/staff line notably large too. Combined with the label's 26mm
-// height, there isn't room left for EXP to also hit its requested
-// multiplier while showing both date and time on one line — EXP is
-// capped lower, and the prepared-time line is dropped from the physical
-// print entirely (it still shows in the on-screen preview) to fit.
-const NAME_MAX_MULT = 10;
-const EXP_MAX_MULT = 6;
-const BY_MAX_MULT = 7;
-const STATUS_MAX_MULT = 2;
+// Product name stays a fixed multiplier (not fully adaptive) so it reads
+// consistently across items instead of swinging from huge (short names)
+// to tiny (long names) — the widest realistic name still fits at this
+// size; longer ones fall back to fittingMultiplier's auto-shrink.
+const NAME_MULT = 4;
+// The 3-column info table (label / date-time / clerk) needs to fit all
+// three side by side within the 56mm width, which only leaves room for a
+// modest multiplier — this is the trade-off for the name staying big.
+const TABLE_MULT = 2;
+const STATUS_MULT = 3;
+
+// X positions (dots) for the 3 columns of the info table, sized for the
+// longest expected content per column at TABLE_MULT ("Prep By" / "30/07
+// 11:15" / a short clerk name) plus a gap between columns.
+const COLUMN_X = [LEFT_MARGIN_DOTS, 108, 265];
 
 /** Strips characters that would break out of a TSPL quoted string literal. */
 function sanitize(value: string): string {
@@ -46,26 +50,26 @@ function fittingMultiplier(text: string, max: number): number {
   return Math.max(2, Math.min(max, estimated));
 }
 
+function dateTime(date: Date): string {
+  return `${formatDateShort(date)} ${formatTimeShort(date)}`;
+}
+
+/**
+ * Modeled on a real PrepSafe label: big product name, then a compact
+ * 3-column table (label / date-time / clerk) — "OOF" (Out Of Freezer) and
+ * "Prep By" for a Thawing print, or "Prep" and "EXP" for a normal one —
+ * plus an optional status line (e.g. "THAWING").
+ */
 export function generateLabelTspl(data: LabelData, copies: number): string {
+  const isThawing = data.status === "THAWING";
   const productName = sanitize(data.productName);
-  // No "EXP:" prefix: at the requested multiplier, adding it drops the
-  // line from fitting at mult 6 to mult 4 (see fittingMultiplier). Since
-  // the prepared-time line was dropped from the physical print, this is
-  // the only date/time shown, so it's unambiguous without a label.
-  const expLine = `${formatDateShort(data.expiresAt)} ${formatTimeShort(data.expiresAt)}`;
-  const byLine = `By: ${sanitize(data.preparedBy)}`;
+  const clerkName = sanitize(data.preparedBy);
+  const nameMult = fittingMultiplier(productName, NAME_MULT);
 
-  const nameMult = fittingMultiplier(productName, NAME_MAX_MULT);
-
-  const fields: Array<[string, number]> = [
-    [expLine, fittingMultiplier(expLine, EXP_MAX_MULT)],
-    [byLine, fittingMultiplier(byLine, BY_MAX_MULT)],
-  ];
-
-  if (data.status) {
-    const statusLine = `-- ${sanitize(data.status)} --`;
-    fields.push([statusLine, fittingMultiplier(statusLine, STATUS_MAX_MULT)]);
-  }
+  const row1Label = isThawing ? "OOF" : "Prep";
+  const row1Value = dateTime(data.preparedAt);
+  const row2Label = isThawing ? "Prep By" : "EXP";
+  const row2Value = dateTime(data.expiresAt);
 
   const safeCopies = Math.max(1, Math.floor(copies) || 1);
 
@@ -78,11 +82,27 @@ export function generateLabelTspl(data: LabelData, copies: number): string {
   ];
   y += nameMult * DOTS_PER_MULT_HEIGHT + LINE_GAP_DOTS;
 
-  const textCommands = fields.map(([text, mult]) => {
-    const command = `TEXT ${LEFT_MARGIN_DOTS},${y},"0",0,${mult},${mult},"${text}"`;
-    y += mult * DOTS_PER_MULT_HEIGHT + LINE_GAP_DOTS;
-    return command;
-  });
+  const row1Y = y;
+  y += TABLE_MULT * DOTS_PER_MULT_HEIGHT + LINE_GAP_DOTS;
+  const row2Y = y;
+  y += TABLE_MULT * DOTS_PER_MULT_HEIGHT + LINE_GAP_DOTS;
+
+  const tableCommands = [
+    `TEXT ${COLUMN_X[0]},${row1Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${row1Label}"`,
+    `TEXT ${COLUMN_X[1]},${row1Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${row1Value}"`,
+    `TEXT ${COLUMN_X[2]},${row1Y},"0",0,${TABLE_MULT},${TABLE_MULT},"Clerk"`,
+    `TEXT ${COLUMN_X[0]},${row2Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${row2Label}"`,
+    `TEXT ${COLUMN_X[1]},${row2Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${row2Value}"`,
+    `TEXT ${COLUMN_X[2]},${row2Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${clerkName}"`,
+  ];
+
+  const statusCommands: string[] = [];
+  if (data.status) {
+    const statusLine = `-- ${sanitize(data.status)} --`;
+    statusCommands.push(
+      `TEXT ${LEFT_MARGIN_DOTS},${y},"0",0,${STATUS_MULT},${STATUS_MULT},"${statusLine}"`,
+    );
+  }
 
   const lines = [
     `SIZE ${LABEL_WIDTH_MM} mm,${LABEL_HEIGHT_MM} mm`,
@@ -90,7 +110,8 @@ export function generateLabelTspl(data: LabelData, copies: number): string {
     "DIRECTION 1",
     "CLS",
     ...nameCommands,
-    ...textCommands,
+    ...tableCommands,
+    ...statusCommands,
     `PRINT 1,${safeCopies}`,
   ];
 
