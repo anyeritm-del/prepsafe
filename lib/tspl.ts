@@ -11,12 +11,14 @@ const GAP_MM = 2;
 // known multipliers and measuring the result: "0123456789" (10 chars) just
 // fits the ~56mm label width at multiplier 7 without clipping. That implies
 // roughly 70 "character-multiplier units" of width available per line —
-// used below to size each line as large as will still fit.
+// used below to size each line as large as will still fit. It's also
+// consistent with an assumed 8 dots/mm (203dpi) print resolution.
 const WIDTH_BUDGET_CHAR_MULT_UNITS = 70;
+export const DOTS_PER_MM = 8;
 // Not independently measured (no ruler reading was given for height) — a
 // working estimate to keep lines from overflowing the 26mm/208-dot label
 // height. Adjust if lines end up clipped at the bottom or overly spaced.
-const DOTS_PER_MULT_HEIGHT = 8;
+export const DOTS_PER_MULT_HEIGHT = 8;
 const LINE_GAP_DOTS = 8;
 // A prior calibration round found y=10 got clipped at the physical top
 // edge while y=25 printed fine.
@@ -39,6 +41,17 @@ const STATUS_MULT = 3;
 // 11:15" / a short clerk name) plus a gap between columns.
 const COLUMN_X = [LEFT_MARGIN_DOTS, 108, 265];
 
+/** One piece of text to render, in printer dots — shared by the TSPL
+ * generator and the on-screen preview so they can never drift apart. */
+export interface LabelElement {
+  x: number;
+  y: number;
+  mult: number;
+  text: string;
+  /** Font "0" has no built-in bold; bold elements get double-printed with a 1-dot offset. */
+  bold?: boolean;
+}
+
 /** Strips characters that would break out of a TSPL quoted string literal. */
 function sanitize(value: string): string {
   return value.replace(/["\r\n]/g, "").trim();
@@ -58,9 +71,11 @@ function dateTime(date: Date): string {
  * Modeled on a real PrepSafe label: big product name, then a compact
  * 3-column table (label / date-time / clerk) — "OOF" (Out Of Freezer) and
  * "Prep By" for a Thawing print, or "Prep" and "EXP" for a normal one —
- * plus an optional status line (e.g. "THAWING").
+ * plus an optional status line (e.g. "THAWING"). Returns element positions
+ * in dots; use `generateLabelTspl` for the printer or render these
+ * directly (scaled) for an on-screen preview.
  */
-export function generateLabelTspl(data: LabelData, copies: number): string {
+export function buildLabelElements(data: LabelData): LabelElement[] {
   const isThawing = data.status === "THAWING";
   const productName = sanitize(data.productName);
   const clerkName = sanitize(data.preparedBy);
@@ -71,14 +86,9 @@ export function generateLabelTspl(data: LabelData, copies: number): string {
   const row2Label = isThawing ? "Prep By" : "EXP";
   const row2Value = dateTime(data.expiresAt);
 
-  const safeCopies = Math.max(1, Math.floor(copies) || 1);
-
-  // Name is printed twice, offset by one dot horizontally, to simulate
-  // bold — font "0" has no built-in bold variant on this printer.
   let y = TOP_MARGIN_DOTS;
-  const nameCommands = [
-    `TEXT ${LEFT_MARGIN_DOTS},${y},"0",0,${nameMult},${nameMult},"${productName}"`,
-    `TEXT ${LEFT_MARGIN_DOTS + 1},${y},"0",0,${nameMult},${nameMult},"${productName}"`,
+  const elements: LabelElement[] = [
+    { x: LEFT_MARGIN_DOTS, y, mult: nameMult, text: productName, bold: true },
   ];
   y += nameMult * DOTS_PER_MULT_HEIGHT + LINE_GAP_DOTS;
 
@@ -87,31 +97,42 @@ export function generateLabelTspl(data: LabelData, copies: number): string {
   const row2Y = y;
   y += TABLE_MULT * DOTS_PER_MULT_HEIGHT + LINE_GAP_DOTS;
 
-  const tableCommands = [
-    `TEXT ${COLUMN_X[0]},${row1Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${row1Label}"`,
-    `TEXT ${COLUMN_X[1]},${row1Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${row1Value}"`,
-    `TEXT ${COLUMN_X[2]},${row1Y},"0",0,${TABLE_MULT},${TABLE_MULT},"Clerk"`,
-    `TEXT ${COLUMN_X[0]},${row2Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${row2Label}"`,
-    `TEXT ${COLUMN_X[1]},${row2Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${row2Value}"`,
-    `TEXT ${COLUMN_X[2]},${row2Y},"0",0,${TABLE_MULT},${TABLE_MULT},"${clerkName}"`,
-  ];
+  elements.push(
+    { x: COLUMN_X[0], y: row1Y, mult: TABLE_MULT, text: row1Label },
+    { x: COLUMN_X[1], y: row1Y, mult: TABLE_MULT, text: row1Value },
+    { x: COLUMN_X[2], y: row1Y, mult: TABLE_MULT, text: "Clerk" },
+    { x: COLUMN_X[0], y: row2Y, mult: TABLE_MULT, text: row2Label },
+    { x: COLUMN_X[1], y: row2Y, mult: TABLE_MULT, text: row2Value },
+    { x: COLUMN_X[2], y: row2Y, mult: TABLE_MULT, text: clerkName },
+  );
 
-  const statusCommands: string[] = [];
   if (data.status) {
-    const statusLine = `-- ${sanitize(data.status)} --`;
-    statusCommands.push(
-      `TEXT ${LEFT_MARGIN_DOTS},${y},"0",0,${STATUS_MULT},${STATUS_MULT},"${statusLine}"`,
-    );
+    elements.push({
+      x: LEFT_MARGIN_DOTS,
+      y,
+      mult: STATUS_MULT,
+      text: `-- ${sanitize(data.status)} --`,
+      bold: true,
+    });
   }
+
+  return elements;
+}
+
+export function generateLabelTspl(data: LabelData, copies: number): string {
+  const safeCopies = Math.max(1, Math.floor(copies) || 1);
+
+  const textCommands = buildLabelElements(data).flatMap((el) => {
+    const command = `TEXT ${el.x},${el.y},"0",0,${el.mult},${el.mult},"${el.text}"`;
+    return el.bold ? [command, `TEXT ${el.x + 1},${el.y},"0",0,${el.mult},${el.mult},"${el.text}"`] : [command];
+  });
 
   const lines = [
     `SIZE ${LABEL_WIDTH_MM} mm,${LABEL_HEIGHT_MM} mm`,
     `GAP ${GAP_MM} mm,0 mm`,
     "DIRECTION 1",
     "CLS",
-    ...nameCommands,
-    ...tableCommands,
-    ...statusCommands,
+    ...textCommands,
     `PRINT 1,${safeCopies}`,
   ];
 

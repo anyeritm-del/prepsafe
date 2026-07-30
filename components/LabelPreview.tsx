@@ -1,25 +1,28 @@
 import { LabelData } from "@/lib/types";
-import { formatDateShort, formatTimeShort } from "@/lib/format";
-import { LABEL_WIDTH_MM, LABEL_HEIGHT_MM } from "@/lib/tspl";
+import {
+  buildLabelElements,
+  LABEL_WIDTH_MM,
+  LABEL_HEIGHT_MM,
+  DOTS_PER_MM,
+  DOTS_PER_MULT_HEIGHT,
+} from "@/lib/tspl";
 
 interface LabelPreviewProps {
   data: LabelData;
 }
 
-// Scale factor so the preview is legible on screen while keeping the same
-// aspect ratio as the physical label (see lib/tspl.ts for the real size).
+// Scale factor (screen px per physical mm) for the preview box.
 const SCALE = 6;
+const PX_PER_DOT = SCALE / DOTS_PER_MM;
 
-function dateTime(date: Date): string {
-  return `${formatDateShort(date)} ${formatTimeShort(date)}`;
-}
-
-// Mirrors generateLabelTspl in lib/tspl.ts: a bold product name, then a
-// 3-column table (label / date-time / clerk) — "OOF"/"Prep By" for a
-// Thawing print, "Prep"/"EXP" otherwise — plus an optional status line.
-// Keep this in sync whenever that layout changes.
+// Renders the exact same element list generateLabelTspl() turns into TEXT
+// commands, positioned/sized from the same dot coordinates — so the
+// preview can't drift out of sync with the physical print the way a
+// hand-written approximation did. Content that would print past the
+// label's physical edge is clipped here too (overflow-hidden), matching
+// what actually happens on paper.
 export function LabelPreview({ data }: LabelPreviewProps) {
-  const isThawing = data.status === "THAWING";
+  const elements = buildLabelElements(data);
 
   return (
     <div className="flex flex-col gap-2">
@@ -27,23 +30,23 @@ export function LabelPreview({ data }: LabelPreviewProps) {
         Preview Label ({LABEL_WIDTH_MM}mm x {LABEL_HEIGHT_MM}mm)
       </p>
       <div
-        className="flex flex-col justify-between border-2 border-neutral-800 bg-white p-3 text-black shadow-sm"
+        className="relative overflow-hidden border-2 border-neutral-800 bg-white text-black shadow-sm"
         style={{ width: LABEL_WIDTH_MM * SCALE, height: LABEL_HEIGHT_MM * SCALE }}
       >
-        <p className="truncate text-xl font-black leading-none">
-          {data.productName || "Nama Produk"}
-        </p>
-        <div className="grid grid-cols-3 gap-x-2 text-xs leading-tight">
-          <span>{isThawing ? "OOF" : "Prep"}</span>
-          <span>{dateTime(data.preparedAt)}</span>
-          <span>Clerk</span>
-          <span>{isThawing ? "Prep By" : "EXP"}</span>
-          <span>{dateTime(data.expiresAt)}</span>
-          <span className="truncate">{data.preparedBy || "-"}</span>
-        </div>
-        {data.status && (
-          <p className="truncate text-sm font-bold leading-tight">-- {data.status} --</p>
-        )}
+        {elements.map((el, i) => (
+          <span
+            key={i}
+            className="absolute whitespace-nowrap font-mono leading-none"
+            style={{
+              left: el.x * PX_PER_DOT,
+              top: el.y * PX_PER_DOT,
+              fontSize: el.mult * DOTS_PER_MULT_HEIGHT * PX_PER_DOT,
+              fontWeight: el.bold ? 900 : 400,
+            }}
+          >
+            {el.text || " "}
+          </span>
+        ))}
       </div>
     </div>
   );
