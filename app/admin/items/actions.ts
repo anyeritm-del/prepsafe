@@ -15,6 +15,13 @@ async function readItemInput(formData: FormData, companyId: string) {
   const labelText = String(formData.get("labelText") ?? "").trim();
   if (!buttonText || !labelText) throw new Error("Item Name dan Label Text wajib diisi.");
 
+  // A newly uploaded file always wins; otherwise the "Hapus foto ini"
+  // checkbox clears it; otherwise leave the existing image untouched
+  // (undefined tells Prisma to skip the field).
+  const uploadedImageUrl = await uploadPhotoIfProvided(formData.get("image"));
+  const removeImage = formData.get("removeImage") === "on";
+  const imageUrl = uploadedImageUrl ?? (removeImage ? null : undefined);
+
   return {
     categoryId: category.id,
     buttonText,
@@ -25,7 +32,7 @@ async function readItemInput(formData: FormData, companyId: string) {
     shelfLifeHours: Number(formData.get("shelfLifeHours") ?? 0) || 0,
     todayPlusShelfLife: formData.get("todayPlusShelfLife") === "on",
     active: formData.get("active") === "on",
-    imageUrl: await uploadPhotoIfProvided(formData.get("image")),
+    imageUrl,
   };
 }
 

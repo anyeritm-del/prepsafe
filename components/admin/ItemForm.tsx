@@ -96,8 +96,14 @@ export function ItemForm({ action, categories, defaultValues, submitLabel }: Ite
       <label className="flex flex-col gap-1">
         <span className="text-sm font-medium text-neutral-700">Image</span>
         {defaultValues?.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={defaultValues.imageUrl} alt="" className="h-16 w-16 rounded object-cover" />
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={defaultValues.imageUrl} alt="" className="h-16 w-16 rounded object-cover" />
+            <label className="flex items-center gap-1 text-xs text-neutral-600">
+              <input type="checkbox" name="removeImage" value="on" className="h-4 w-4" />
+              Hapus foto ini
+            </label>
+          </div>
         )}
         <input type="file" name="image" accept="image/*" className={inputClass} />
       </label>

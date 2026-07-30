@@ -8,6 +8,12 @@ import { Prisma } from "@/lib/generated/prisma/client";
 
 const PAGE_SIZE = 20;
 
+function BoolCheck({ value }: { value: boolean }) {
+  return (
+    <input type="checkbox" checked={value} readOnly disabled className="h-4 w-4 accent-neutral-900" />
+  );
+}
+
 interface ItemsPageProps {
   searchParams: Promise<{ page?: string; regionId?: string; storeId?: string; categoryId?: string }>;
 }
@@ -115,9 +121,23 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
         columns={[
           { header: "Button Text", cell: (r) => r.buttonText },
           { header: "Label Text", cell: (r) => r.labelText },
-          { header: "Category", cell: (r) => r.category.name },
+          { header: "Batch Required", cell: (r) => <BoolCheck value={r.batchRequired} /> },
+          { header: "Today+", cell: (r) => <BoolCheck value={r.todayPlusShelfLife} /> },
           { header: "Shelf Life", cell: (r) => r.shelfLifeHours },
-          { header: "Active", cell: (r) => (r.active ? "Yes" : "No") },
+          { header: "Defrost Life", cell: (r) => r.defrostLifeHours },
+          { header: "Direct Defrost", cell: (r) => r.directDefrostHours },
+          {
+            header: "Image",
+            cell: (r) =>
+              r.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={r.imageUrl} alt="" className="h-10 w-10 rounded object-cover" />
+              ) : (
+                ""
+              ),
+          },
+          { header: "Active", cell: (r) => <BoolCheck value={r.active} /> },
+          { header: "Category", cell: (r) => r.category.name },
           {
             header: "Actions",
             cell: (r) => (
