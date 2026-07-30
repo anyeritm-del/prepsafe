@@ -5,6 +5,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireCompanySession } from "@/lib/session";
 
+function readMarginMm(formData: FormData, field: string, fallback: number): number {
+  const value = Number(formData.get(field));
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
 async function readStoreInput(formData: FormData, companyId: string) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Nama store wajib diisi.");
@@ -17,23 +22,30 @@ async function readStoreInput(formData: FormData, companyId: string) {
     regionId = region.id;
   }
 
-  return { name, regionId };
+  return {
+    name,
+    regionId,
+    labelMarginTopMm: readMarginMm(formData, "labelMarginTopMm", 3),
+    labelMarginBottomMm: readMarginMm(formData, "labelMarginBottomMm", 1),
+    labelMarginLeftMm: readMarginMm(formData, "labelMarginLeftMm", 1),
+    labelMarginRightMm: readMarginMm(formData, "labelMarginRightMm", 1),
+  };
 }
 
 export async function createStore(formData: FormData) {
   const { companyId } = await requireCompanySession();
-  const { name, regionId } = await readStoreInput(formData, companyId);
+  const input = await readStoreInput(formData, companyId);
 
-  await prisma.store.create({ data: { companyId, name, regionId } });
+  await prisma.store.create({ data: { companyId, ...input } });
   revalidatePath("/admin/stores");
   redirect("/admin/stores");
 }
 
 export async function updateStore(id: string, formData: FormData) {
   const { companyId } = await requireCompanySession();
-  const { name, regionId } = await readStoreInput(formData, companyId);
+  const input = await readStoreInput(formData, companyId);
 
-  await prisma.store.updateMany({ where: { id, companyId }, data: { name, regionId } });
+  await prisma.store.updateMany({ where: { id, companyId }, data: input });
   revalidatePath("/admin/stores");
   redirect("/admin/stores");
 }

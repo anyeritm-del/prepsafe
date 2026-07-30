@@ -7,33 +7,39 @@ export const LABEL_WIDTH_MM = 56;
 export const LABEL_HEIGHT_MM = 26;
 const GAP_MM = 2;
 
+export const DOTS_PER_MM = 8;
 // Font "0" on this GS 2208D unit, calibrated by printing known strings at
 // known multipliers and measuring the result: "0123456789" (10 chars) just
-// fits the ~56mm label width at multiplier 7 without clipping. That implies
-// roughly 70 "character-multiplier units" of width available per line —
-// used below to size each line as large as will still fit. It's also
-// consistent with an assumed 8 dots/mm (203dpi) print resolution.
-const WIDTH_BUDGET_CHAR_MULT_UNITS = 70;
-export const DOTS_PER_MM = 8;
+// fits the ~56mm label width at multiplier 7 without clipping — i.e. about
+// 6.4 dots of width per (character × multiplier) unit.
+const DOTS_PER_CHAR_UNIT = (LABEL_WIDTH_MM * DOTS_PER_MM) / 70;
 // Not independently measured (no ruler reading was given for height) — a
-// working estimate to keep lines from overflowing the 26mm/208-dot label
-// height. Adjust if lines end up clipped at the bottom or overly spaced.
+// working estimate for how tall one multiplier unit of font "0" prints.
+// Adjust if lines end up clipped or under-filling the label height.
 export const DOTS_PER_MULT_HEIGHT = 8;
 const LINE_GAP_DOTS = 8;
-// A prior calibration round found y=10 got clipped at the physical top
-// edge while y=25 printed fine.
-const TOP_MARGIN_DOTS = 20;
-const LEFT_MARGIN_DOTS = 8;
+// The largest multiplier the auto-fit search below will try, as a sanity
+// ceiling — no realistic label content should ever need more than this.
+const MAX_MULT_CEILING = 20;
 
-// A 3-column side-by-side layout (label | date-time | clerk) was tried and
-// printed too small to read comfortably — 3 columns sharing the 56mm
-// width forces every column down to mult 2. Stacked full-width lines let
-// each one use the whole width budget instead, at the cost of not
-// visually matching the reference mockup's column layout.
-const NAME_MAX_MULT = 5;
-const ROW_MAX_MULT = 5;
-const CLERK_MAX_MULT = 5;
-const STATUS_MAX_MULT = 3;
+/** Margins (mm) around the printable area — adjustable per Store so each
+ * printer/label setup can be calibrated without a code change. */
+export interface LabelMargins {
+  topMm: number;
+  bottomMm: number;
+  leftMm: number;
+  rightMm: number;
+}
+
+// A prior calibration round found text near the very top edge (y=10 dots,
+// ~1.25mm) got clipped by the printer while y=25 dots (~3mm) printed fine
+// — hence the larger default top margin.
+export const DEFAULT_LABEL_MARGINS: LabelMargins = {
+  topMm: 3,
+  bottomMm: 1,
+  leftMm: 1,
+  rightMm: 1,
+};
 
 /** One piece of text to render, in printer dots — shared by the TSPL
  * generator and the on-screen preview so they can never drift apart. */
@@ -46,15 +52,14 @@ export interface LabelElement {
   bold?: boolean;
 }
 
+interface FieldSpec {
+  text: string;
+  bold?: boolean;
+}
+
 /** Strips characters that would break out of a TSPL quoted string literal. */
 function sanitize(value: string): string {
   return value.replace(/["\r\n]/g, "").trim();
-}
-
-/** Largest multiplier (up to `max`) that keeps `text` within the label width. */
-function fittingMultiplier(text: string, max: number): number {
-  const estimated = Math.floor(WIDTH_BUDGET_CHAR_MULT_UNITS / Math.max(text.length, 1));
-  return Math.max(2, Math.min(max, estimated));
 }
 
 function dateTime(date: Date): string {
@@ -62,44 +67,95 @@ function dateTime(date: Date): string {
 }
 
 /**
- * Stacked full-width lines, each sized as large as its own text allows:
- * bold product name, "OOF"/"Prep By" (Thawing) or "Prep"/"EXP" (normal)
- * date-time lines, a Clerk line, and an optional status line. Returns
- * element positions in dots; use `generateLabelTspl` for the printer or
- * render these directly (scaled) for an on-screen preview.
+ * Stacks `fields` top to bottom, each as large as it can be, filling as
+ * much of the available width×height box as possible instead of using a
+ * fixed per-field size cap (which was leaving visible blank space). For
+ * each candidate uniform multiplier `m`, every field is sized to
+ * `min(m, its own width-fit limit)` — short fields keep growing with `m`
+ * past where longer ones have already maxed out their own width — and the
+ * search keeps the largest `m` whose resulting stack still fits the
+ * height budget.
  */
-export function buildLabelElements(data: LabelData): LabelElement[] {
+function layoutStackedFields(
+  fields: FieldSpec[],
+  availWidthDots: number,
+  availHeightDots: number,
+): Array<{ mult: number }> {
+  if (fields.length === 0) return [];
+
+  const widthCaps = fields.map((f) =>
+    Math.max(2, Math.floor(availWidthDots / (Math.max(f.text.length, 1) * DOTS_PER_CHAR_UNIT))),
+  );
+
+  const stackHeight = (mults: number[]) =>
+    mults.reduce((sum, mult) => sum + mult * DOTS_PER_MULT_HEIGHT, 0) +
+    (fields.length - 1) * LINE_GAP_DOTS;
+
+  let best = widthCaps.map(() => 2);
+  for (let m = 2; m <= MAX_MULT_CEILING; m++) {
+    const candidate = widthCaps.map((cap) => Math.min(cap, m));
+    if (stackHeight(candidate) <= availHeightDots) {
+      best = candidate;
+    } else {
+      break;
+    }
+  }
+
+  return best.map((mult) => ({ mult }));
+}
+
+/**
+ * Stacked full-width lines, auto-sized to fill the printable area (label
+ * size minus `margins`): bold product name, "OOF"/"Prep By" (Thawing) or
+ * "Prep"/"EXP" (normal) date-time lines, a Clerk line, and an optional
+ * status line. Returns element positions in dots; use `generateLabelTspl`
+ * for the printer or render these directly (scaled) for an on-screen
+ * preview.
+ */
+export function buildLabelElements(
+  data: LabelData,
+  margins: LabelMargins = DEFAULT_LABEL_MARGINS,
+): LabelElement[] {
   const isThawing = data.status === "THAWING";
   const productName = sanitize(data.productName);
   const clerkLine = `Clerk: ${sanitize(data.preparedBy)}`;
-
   const row1Line = `${isThawing ? "OOF" : "Prep"} ${dateTime(data.preparedAt)}`;
   const row2Line = `${isThawing ? "Prep By" : "EXP"} ${dateTime(data.expiresAt)}`;
 
-  const fields: Array<[string, number, boolean?]> = [
-    [productName, fittingMultiplier(productName, NAME_MAX_MULT), true],
-    [row1Line, fittingMultiplier(row1Line, ROW_MAX_MULT)],
-    [row2Line, fittingMultiplier(row2Line, ROW_MAX_MULT)],
-    [clerkLine, fittingMultiplier(clerkLine, CLERK_MAX_MULT)],
+  const fields: FieldSpec[] = [
+    { text: productName, bold: true },
+    { text: row1Line },
+    { text: row2Line },
+    { text: clerkLine },
   ];
-
   if (data.status) {
-    const statusLine = `-- ${sanitize(data.status)} --`;
-    fields.push([statusLine, fittingMultiplier(statusLine, STATUS_MAX_MULT), true]);
+    fields.push({ text: `-- ${sanitize(data.status)} --`, bold: true });
   }
 
-  let y = TOP_MARGIN_DOTS;
-  return fields.map(([text, mult, bold]) => {
-    const element: LabelElement = { x: LEFT_MARGIN_DOTS, y, mult, text, bold };
+  const leftDots = margins.leftMm * DOTS_PER_MM;
+  const availWidthDots = LABEL_WIDTH_MM * DOTS_PER_MM - leftDots - margins.rightMm * DOTS_PER_MM;
+  const availHeightDots =
+    LABEL_HEIGHT_MM * DOTS_PER_MM - margins.topMm * DOTS_PER_MM - margins.bottomMm * DOTS_PER_MM;
+
+  const sizes = layoutStackedFields(fields, availWidthDots, availHeightDots);
+
+  let y = margins.topMm * DOTS_PER_MM;
+  return fields.map((field, i) => {
+    const mult = sizes[i].mult;
+    const element: LabelElement = { x: leftDots, y, mult, text: field.text, bold: field.bold };
     y += mult * DOTS_PER_MULT_HEIGHT + LINE_GAP_DOTS;
     return element;
   });
 }
 
-export function generateLabelTspl(data: LabelData, copies: number): string {
+export function generateLabelTspl(
+  data: LabelData,
+  copies: number,
+  margins: LabelMargins = DEFAULT_LABEL_MARGINS,
+): string {
   const safeCopies = Math.max(1, Math.floor(copies) || 1);
 
-  const textCommands = buildLabelElements(data).flatMap((el) => {
+  const textCommands = buildLabelElements(data, margins).flatMap((el) => {
     const command = `TEXT ${el.x},${el.y},"0",0,${el.mult},${el.mult},"${el.text}"`;
     return el.bold ? [command, `TEXT ${el.x + 1},${el.y},"0",0,${el.mult},${el.mult},"${el.text}"`] : [command];
   });

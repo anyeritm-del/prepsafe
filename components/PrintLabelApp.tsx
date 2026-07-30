@@ -5,13 +5,17 @@ import { useMemo, useState } from "react";
 import { LabelPreview } from "@/components/LabelPreview";
 import { PrinterConnect } from "@/components/PrinterConnect";
 import { addHours, startOfToday } from "@/lib/format";
-import { generateLabelTspl, LABEL_WIDTH_MM, LABEL_HEIGHT_MM } from "@/lib/tspl";
+import { generateLabelTspl, LABEL_WIDTH_MM, LABEL_HEIGHT_MM, LabelMargins } from "@/lib/tspl";
 import { LabelData } from "@/lib/types";
 import { PrinterConnection, sendToPrinter } from "@/lib/webusb";
 
 export interface PrintStore {
   id: string;
   name: string;
+  labelMarginTopMm: number;
+  labelMarginBottomMm: number;
+  labelMarginLeftMm: number;
+  labelMarginRightMm: number;
 }
 
 export interface PrintClerk {
@@ -64,6 +68,16 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
   const [connection, setConnection] = useState<PrinterConnection | null>(null);
   const [printStatus, setPrintStatus] = useState<PrintStatus>({ state: "idle" });
 
+  const selectedStore = data.stores.find((s) => s.id === storeId) ?? null;
+  const margins: LabelMargins | undefined = selectedStore
+    ? {
+        topMm: selectedStore.labelMarginTopMm,
+        bottomMm: selectedStore.labelMarginBottomMm,
+        leftMm: selectedStore.labelMarginLeftMm,
+        rightMm: selectedStore.labelMarginRightMm,
+      }
+    : undefined;
+
   const storeClerks = useMemo(
     () => data.clerks.filter((c) => c.storeId === storeId),
     [data.clerks, storeId],
@@ -115,7 +129,7 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
     if (!labelData || !connection) return;
     setPrintStatus({ state: "printing" });
     try {
-      const tspl = generateLabelTspl(labelData, 1);
+      const tspl = generateLabelTspl(labelData, 1, margins);
       await sendToPrinter(connection, tspl);
       setPrintStatus({ state: "success" });
       setCategoryId(null);
@@ -269,7 +283,7 @@ export default function PrintLabelApp({ data }: { data: PrintPageData }) {
 
       {labelData && (
         <div className="flex flex-col items-start gap-4">
-          <LabelPreview data={labelData} />
+          <LabelPreview data={labelData} margins={margins} />
           <button
             type="button"
             onClick={handlePrint}

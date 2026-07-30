@@ -150,13 +150,22 @@ sama. Kalau nanti printer perlu dipakai lagi lewat aplikasi Windows biasa
 macOS dan Linux umumnya tidak mengalami masalah ini karena tidak ada driver
 printer class bawaan yang mengklaim device secara eksklusif.
 
-## Kustomisasi posisi label
+## Kalibrasi label (margin)
 
-Generator perintah TSPL ada di [`lib/tspl.ts`](lib/tspl.ts). Ukuran kertas,
-posisi teks (`x,y` dalam dot, 8 dot = 1mm pada resolusi 203dpi), dan ukuran
-font (`multiplier`) semuanya konstanta di file itu. Kalau posisi teks meleset
-di label fisik (tergantung kalibrasi gap sensor tiap unit printer), sesuaikan
-angka `x,y` di sana lalu tes ulang cetak.
+Setiap **Store** punya pengaturan margin cetak sendiri (atas/bawah/kiri/kanan
+dalam mm) — edit di **Administration → Stores → Edit**. Ukuran font tiap
+baris (nama, EXP, prep, clerk) dihitung otomatis untuk memenuhi ruang yang
+tersisa setelah margin itu — jadi menaikkan margin akan mengecilkan teks
+(memberi ruang kosong lebih di tepi), sedangkan menurunkan margin akan
+membesarkan teks (mepet ke tepi). Kalau teks kepotong di salah satu sisi,
+naikkan margin sisi itu; kalau masih banyak ruang kosong, turunkan.
+
+Preview di halaman cetak memakai margin Store yang sedang dipilih dan dijamin
+sama persis dengan yang akan tercetak (lihat `buildLabelElements` di
+[`lib/tspl.ts`](lib/tspl.ts) — dipakai bersama oleh preview & generator TSPL).
+
+Constants lain (ukuran kertas 56x26mm, resolusi 8 dot/mm) ada di
+[`lib/tspl.ts`](lib/tspl.ts) kalau perlu diubah untuk printer/label lain.
 
 Setelah deploy (lihat "Setup awal" di atas), login dan ulangi tes hubungkan
 printer & cetak dari domain Vercel (HTTPS) untuk memastikan WebUSB tetap

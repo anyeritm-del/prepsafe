@@ -5,10 +5,12 @@ import {
   LABEL_HEIGHT_MM,
   DOTS_PER_MM,
   DOTS_PER_MULT_HEIGHT,
+  LabelMargins,
 } from "@/lib/tspl";
 
 interface LabelPreviewProps {
   data: LabelData;
+  margins?: LabelMargins;
 }
 
 // Scale factor (screen px per physical mm) for the preview box.
@@ -21,8 +23,8 @@ const PX_PER_DOT = SCALE / DOTS_PER_MM;
 // hand-written approximation did. Content that would print past the
 // label's physical edge is clipped here too (overflow-hidden), matching
 // what actually happens on paper.
-export function LabelPreview({ data }: LabelPreviewProps) {
-  const elements = buildLabelElements(data);
+export function LabelPreview({ data, margins }: LabelPreviewProps) {
+  const elements = buildLabelElements(data, margins);
 
   return (
     <div className="flex flex-col gap-2">

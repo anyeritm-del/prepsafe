@@ -44,6 +44,14 @@ model Store {
   clerks    Clerk[]
   createdAt DateTime @default(now())
 
+  // Printable-area margins (mm) within the physical label for this Store's
+  // printer — lets each Store calibrate its own printer without a code
+  // change. See lib/tspl.ts for how these bound the auto-fit text sizing.
+  labelMarginTopMm    Float @default(3)
+  labelMarginBottomMm Float @default(1)
+  labelMarginLeftMm   Float @default(1)
+  labelMarginRightMm  Float @default(1)
+
   @@index([companyId])
   @@index([regionId])
 }

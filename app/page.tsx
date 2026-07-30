@@ -20,7 +20,14 @@ export default async function Home() {
   ]);
 
   const data: PrintPageData = {
-    stores: stores.map((s) => ({ id: s.id, name: s.name })),
+    stores: stores.map((s) => ({
+      id: s.id,
+      name: s.name,
+      labelMarginTopMm: s.labelMarginTopMm,
+      labelMarginBottomMm: s.labelMarginBottomMm,
+      labelMarginLeftMm: s.labelMarginLeftMm,
+      labelMarginRightMm: s.labelMarginRightMm,
+    })),
     clerks: clerks.map((c) => ({
       id: c.id,
       storeId: c.storeId,
