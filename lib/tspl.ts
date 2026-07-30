@@ -18,7 +18,11 @@ const WIDTH_BUDGET_CHAR_MULT_UNITS = 70;
 // height. Adjust if lines end up clipped at the bottom or overly spaced.
 const DOTS_PER_MULT_HEIGHT = 8;
 const LINE_GAP_DOTS = 4;
-const TOP_MARGIN_DOTS = 4;
+// A prior calibration round found y=10 got clipped at the physical top
+// edge while y=25 printed fine — this had been squeezed down to 4 while
+// chasing vertical space for bigger EXP text, which likely clipped the
+// name line entirely. 18 trades a little height budget back for safety.
+const TOP_MARGIN_DOTS = 18;
 const LEFT_MARGIN_DOTS = 8;
 // EXP is the food-safety-critical field: printed as its own date line and
 // time line (rather than one combined "dd/mm HH:mm" line) so each is short
