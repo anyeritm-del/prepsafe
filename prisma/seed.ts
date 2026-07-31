@@ -55,14 +55,30 @@ const SAMPLE_CATEGORIES = [
     order: 40,
     items: [
       { buttonText: "Ayam Fillet", labelText: "Ayam Fillet", shelfLifeHours: 48, todayPlusShelfLife: false },
-      { buttonText: "Ayam Utuh", labelText: "Ayam Utuh", shelfLifeHours: 72, todayPlusShelfLife: false },
+      {
+        buttonText: "Ayam Utuh",
+        labelText: "Ayam Utuh",
+        shelfLifeHours: 72,
+        todayPlusShelfLife: false,
+        // Sample Thawing data — lets a fresh install test the Thawing print
+        // flow immediately without manual Data Master setup.
+        defrostLifeHours: 8,
+        directDefrostHours: 2,
+      },
     ],
   },
   {
     name: "Seafood",
     order: 50,
     items: [
-      { buttonText: "Udang Kupas", labelText: "Udang Kupas", shelfLifeHours: 48, todayPlusShelfLife: false },
+      {
+        buttonText: "Udang Kupas",
+        labelText: "Udang Kupas",
+        shelfLifeHours: 48,
+        todayPlusShelfLife: false,
+        defrostLifeHours: 4,
+        directDefrostHours: 1,
+      },
       {
         buttonText: "Ikan Kakap Fillet",
         labelText: "Ikan Kakap Fillet",
@@ -72,6 +88,14 @@ const SAMPLE_CATEGORIES = [
     ],
   },
 ];
+
+// Applied unconditionally (not just on first seed) so existing installs —
+// like the already-seeded production database — pick up Thawing sample
+// data on their next deploy too, without touching anything else.
+const THAWING_SAMPLE_HOURS: Record<string, { defrostLifeHours: number; directDefrostHours: number }> = {
+  "Udang Kupas": { defrostLifeHours: 4, directDefrostHours: 1 },
+  "Ayam Utuh": { defrostLifeHours: 8, directDefrostHours: 2 },
+};
 
 const SAMPLE_CLERKS = [
   { screenName: "Andi", printName: "Andi", order: 1 },
@@ -129,6 +153,18 @@ async function ensureSampleCategories(companyId: string): Promise<void> {
   console.log(`Seed: created ${SAMPLE_CATEGORIES.length} sample categories with items.`);
 }
 
+async function ensureThawingSampleData(companyId: string): Promise<void> {
+  for (const [buttonText, hours] of Object.entries(THAWING_SAMPLE_HOURS)) {
+    const updated = await prisma.item.updateMany({
+      where: { buttonText, category: { companyId } },
+      data: hours,
+    });
+    if (updated.count > 0) {
+      console.log(`Seed: set Thawing sample hours on "${buttonText}".`);
+    }
+  }
+}
+
 async function ensureSampleClerks(companyId: string): Promise<void> {
   const store = await prisma.store.findFirst({ where: { companyId } });
   if (!store) return;
@@ -148,6 +184,7 @@ async function ensureSampleClerks(companyId: string): Promise<void> {
 async function main() {
   const company = await ensureCompanyAdmin();
   await ensureSampleCategories(company.id);
+  await ensureThawingSampleData(company.id);
   await ensureSampleClerks(company.id);
 }
 
